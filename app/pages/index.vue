@@ -5,9 +5,11 @@ import { arModelPath } from '~/utils/three/ar'
 import type { VisualTarget } from '~/utils/three/configuratorScene'
 
 const { getOption, paint, selections, configuration } = useConfigurator()
+const { selected: coverPiece, imageUrl: pieceImage } = usePieces()
 const { set: setVisualStatus } = useVisualStatus()
 const { steps, stepIndex, currentStep } = useConfiguratorSteps()
-const { total } = usePricing()
+const { total, displayTotal } = usePricing()
+const { currency, currencies, setCurrency } = useCurrency()
 const buildRef = useRuntimeConfig().public.buildRef as string
 useHead({ meta: [{ name: 'forgelab-build', content: buildRef }] })
 /** Server-assembled GLB of the exact build, for Android AR (Scene Viewer). */
@@ -22,6 +24,7 @@ const paintLabel = computed(() => {
 /** What the 3D viewer should show — paint + every group's selection. */
 const visualTarget = computed<VisualTarget>(() => ({
   paint: paint.value,
+  coverImage: coverPiece.value ? pieceImage(coverPiece.value.id) : null,
   variants: Object.fromEntries(GROUP_IDS.filter((g) => g !== 'paint').map((g) => [g, visualOptionFor(FORGELAB_ROAD_BIKE, g, selections.value)])),
 }))
 
@@ -59,9 +62,21 @@ useSeoMeta({
           Road Configurator <span class="mx-2 text-bone-300">/</span>
           <span class="text-ink">{{ frameName }}</span>
         </p>
-        <div class="flex items-center gap-3">
+        <div class="flex items-center gap-2 sm:gap-3">
+          <label class="relative">
+            <span class="sr-only">Currency</span>
+            <select
+              :value="currency"
+              class="tabular h-8 cursor-pointer appearance-none rounded-full border border-bone-300 bg-transparent pl-3 pr-7 text-xs font-medium text-ink hover:border-graphite-300 focus:border-ink focus:outline-none"
+              title="Prices use fixed demo exchange rates"
+              @change="setCurrency(($event.target as HTMLSelectElement).value as typeof currency)"
+            >
+              <option v-for="c in currencies" :key="c.code" :value="c.code">{{ c.code }}</option>
+            </select>
+            <span class="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[0.6rem] text-graphite" aria-hidden="true">▼</span>
+          </label>
           <span class="hidden text-xs uppercase tracking-[0.12em] text-graphite-400 sm:inline">Total</span>
-          <PriceDisplay :value="total" />
+          <PriceDisplay :value="displayTotal" />
         </div>
       </div>
     </header>
@@ -133,6 +148,7 @@ useSeoMeta({
                     :default-open="i === 0"
                   />
                 </div>
+                <UniquePieceGroup v-if="currentStep.id === 'cockpit'" class="mt-8" />
               </div>
             </div>
           </Transition>
@@ -151,6 +167,11 @@ useSeoMeta({
             prices are illustrative. Third-party brand names are used for demonstration only and imply no affiliation
             or product compatibility.
             <span class="tabular ml-1 whitespace-nowrap">Build {{ buildRef }}</span>
+            <span class="mt-2 block">
+              <NuxtLink to="/how-its-built" class="font-medium text-ink underline-offset-4 hover:underline">How it's built →</NuxtLink>
+              <span class="mx-2 text-bone-300">·</span>
+              <NuxtLink to="/admin" class="underline-offset-4 hover:underline">Studio admin</NuxtLink>
+            </span>
           </p>
         </section>
 

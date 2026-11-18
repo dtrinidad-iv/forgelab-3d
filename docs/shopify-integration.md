@@ -1,8 +1,44 @@
-# Shopify integration plan
+# Shopify integration
 
-Status: **not implemented.** The MVP uses a mock commerce provider with server-side pricing. The
-configurator talks only to `CommerceProvider` (`app/commerce/types.ts`), so Shopify plugs in
-without changing configurator code. No Shopify packages are installed yet.
+Status: **implemented (Storefront API 2026-10), opt-in.** `NUXT_PUBLIC_COMMERCE_PROVIDER=shopify`
+switches the server routes from the mock store to a real Shopify store; the default stays `mock`.
+No Shopify packages — one typed `fetch` (`app/commerce/shopify/storefront.ts`).
+
+| Piece | File |
+|---|---|
+| Product import (CSV, same SKUs/prices/stock as the configurator) | `app/commerce/shopify/productsCsv.ts` → `npm run shopify:csv` → `shopify/forgelab-products.csv` |
+| Quote: strict validation + compatibility + region rules, then every line priced from Shopify by SKU (`@inContext(country)`) | `app/commerce/shopify/service.ts` `quoteShopify` |
+| Cart: only `gid://shopify/ProductVariant/…` ids, `cartCreate` with build attributes + buyer country; dropped (sold-out) lines are reported | `createShopifyCart` |
+| Private token, server-only, buyer IP forwarded | `server/utils/shopify.ts` |
+| Browser provider (same routes, redirects to Shopify checkout) | `app/commerce/shopify/provider.ts` |
+| Tests (fake Storefront API) | `tests/shopify.test.ts` |
+
+### Store setup (one time)
+
+1. Dev store (Dev Dashboard → Stores → Create store → Dev). **Settings → General → Store currency: USD**
+   before importing (CSV prices are in the store currency).
+2. Install the **Headless** channel → Create storefront → copy the **private** token.
+3. `.env` (git-ignored) / Netlify env vars:
+   `NUXT_PUBLIC_SHOPIFY_STORE_DOMAIN=<store>.myshopify.com`, `NUXT_SHOPIFY_STOREFRONT_PRIVATE_TOKEN=…`,
+   `NUXT_PUBLIC_COMMERCE_PROVIDER=shopify`.
+4. `npm run shopify:csv`, then **Products → Import** `shopify/forgelab-products.csv`; select all
+   ForgeLab products → **Include in sales channels → Headless**.
+5. **Settings → Markets**: add the countries you sell to (US, CA, GB, DE/FR/IT, JP, AU). A country
+   outside every market can't check out; each market's currency is what Shopify charges.
+6. Test payments: Settings → Payments → test mode / Bogus gateway.
+
+### Known limits
+
+- One-of-a-kind covers live in ForgeLab storage, not Shopify — refused in Shopify mode with a clear
+  message. Syncing them needs the Admin API (create a product per piece on upload, inventory 1).
+- The configurator shows demo-rate estimates; Shopify's market prices (currency + rounding) are
+  authoritative and the cart says so when they differ.
+- Region rules are checked before the cart is created; the buyer can still change the address in
+  Shopify checkout. Enforcing them there needs a cart & checkout validation Function.
+- Stock badges in the configurator use `config/inventory.ts` (the same numbers the CSV seeds);
+  Shopify's `availableForSale` is what actually blocks a purchase.
+
+## Original plan
 
 > Verify every API detail below against Shopify's current Storefront API documentation and pick a
 > currently supported API version when implementing — this plan describes the approach, not a
@@ -81,7 +117,7 @@ Function that merges the component lines into a bundle parent) — check plan av
 7. Contract tests: the existing `tests/commerce.test.ts` cases must pass against the Shopify provider
    (tampering rejected, incompatible builds refused, line attributes present).
 
-## Already in place
+## Already in place (before the integration)
 
 - `CommerceProvider` / `ProductCatalogProvider` / `CartProvider` / `CheckoutProvider` / `OrderConfiguration` types
 - Mock provider + Nitro routes with strict validation and server pricing

@@ -7,7 +7,7 @@
  * parts at the BASE position, so swapping parts while exploded keeps everything consistent.
  * Pure Three.js, unit-tested.
  */
-import { type Object3D, Vector3 } from 'three'
+import { type Object3D, Quaternion, Vector3 } from 'three'
 
 export type ExplodeOffsets = Record<string, [number, number, number]>
 
@@ -16,6 +16,12 @@ const ease = (k: number) => (k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 
 export function basePositionOf(node: Object3D): Vector3 {
   const stored = node.userData.basePosition as Vector3 | undefined
   return stored ? stored.clone() : node.position.clone()
+}
+
+/** Rest rotation (recorded by animations such as the ride player before they rotate a node). */
+export function baseQuaternionOf(node: Object3D): Quaternion {
+  const stored = node.userData.baseQuaternion as Quaternion | undefined
+  return stored ? stored.clone() : node.quaternion.clone()
 }
 
 export class ExplodedView {

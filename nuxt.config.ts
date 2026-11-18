@@ -28,7 +28,18 @@ export default defineNuxtConfig({
     ],
   },
 
+  // Typed loosely on purpose: in this setup nuxt.config only sees Nitro's fallback config type
+  // (same gap as routeRules), but Nitro does honour `storage` at build time.
+  nitro: {
+    storage: {
+      // Unique-piece photos + metadata: Netlify Blobs when built on Netlify, a local folder otherwise.
+      pieces: process.env.NETLIFY ? { driver: 'netlify-blobs', name: 'forgelab-pieces' } : { driver: 'fs', base: './.data/pieces' },
+    },
+  } as Record<string, unknown>,
+
   runtimeConfig: {
+    /** Admin uploads are disabled unless NUXT_ADMIN_PASSWORD is set. */
+    adminPassword: '',
     // Server-only secrets (future Shopify integration). Never exposed to the browser.
     shopifyStorefrontPrivateToken: '',
     public: {

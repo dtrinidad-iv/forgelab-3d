@@ -2,8 +2,8 @@
 import { GROUPS } from '~/config/catalog'
 import type { GroupId } from '~/types/configurator'
 import type { CompatibilityIssue } from '~/utils/compatibility'
-import { formatPrice } from '~/utils/pricing'
 
+const { format: formatPrice } = useCurrency()
 const props = withDefaults(
   defineProps<{ groups: GroupId[]; severities?: CompatibilityIssue['severity'][] }>(),
   { severities: () => ['error', 'warning'] },

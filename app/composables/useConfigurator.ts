@@ -39,6 +39,10 @@ export function useConfigurator() {
     }
   }
 
+  function setUniqueCover(id: string | null) {
+    configuration.value = { ...configuration.value, uniqueCover: id }
+  }
+
   function resetConfiguration() {
     configuration.value = cloneDefaultConfiguration()
   }
@@ -52,6 +56,7 @@ export function useConfigurator() {
     isGroupComplete,
     select,
     setCustomPaint,
+    setUniqueCover,
     resetConfiguration,
   }
 }

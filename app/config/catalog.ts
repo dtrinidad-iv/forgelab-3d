@@ -105,4 +105,5 @@ export const DEFAULT_CONFIGURATION: Configuration = {
     saddle: 'saddle-race',
   },
   customPaint: { color: '#E4572E', finish: 'gloss' },
+  uniqueCover: null,
 }

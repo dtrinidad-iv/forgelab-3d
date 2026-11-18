@@ -1,7 +1,28 @@
 <script setup lang="ts">
-import { formatPrice } from '~/utils/pricing'
+import { isCurrencyCode } from '~/config/currency'
+import { DESTINATIONS, destinationOf } from '~/config/shipping'
+import { formatMoney } from '~/utils/money'
 
-const { provider, status, open, quote, cart, error, clientTotal, close, addToCart } = useCommerce()
+/** Server money values are already in the cart currency. */
+const money = (m: { amount: number; currencyCode: string }) =>
+  isCurrencyCode(m.currencyCode)
+    ? formatMoney(m.amount, m.currencyCode)
+    : new Intl.NumberFormat('en-US', { style: 'currency', currency: m.currencyCode, maximumFractionDigits: 2 }).format(m.amount)
+
+const { provider, status, open, quote, cart, error, errorCode, finishRestricted, shipTo, shipToChosen, clientTotal, close, addToCart, openPackingSlip } = useCommerce()
+const { goToGroup } = useConfiguratorSteps()
+
+const destination = computed(() => destinationOf(shipTo.value.country))
+const canSubmit = computed(() => Boolean(destination.value && (!destination.value.regions || shipTo.value.region)))
+function setCountry(code: string) {
+  shipTo.value = { country: code, region: null }
+  shipToChosen.value = true
+}
+/** Region-rule block → take the customer straight to the step that can fix it. */
+function changeFinish() {
+  close()
+  goToGroup('paint')
+}
 
 const showCheckout = ref(false)
 const panel = ref<HTMLElement | null>(null)
@@ -29,7 +50,9 @@ watch([showCheckout, status], async () => {
 
 onBeforeUnmount(() => import.meta.client && window.removeEventListener('keydown', onKeydown))
 
-const priceMatches = computed(() => !cart.value || cart.value.cost.total.amount === clientTotal.value)
+const { currency: displayCurrency } = useCurrency()
+const currencyMatches = computed(() => !cart.value || cart.value.cost.total.currencyCode === displayCurrency.value)
+const priceMatches = computed(() => !cart.value || (currencyMatches.value && cart.value.cost.total.amount === clientTotal.value))
 const quotedAt = computed(() => (quote.value ? new Date(quote.value.quotedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : ''))
 
 function goToCheckout() {
@@ -60,7 +83,7 @@ function goToCheckout() {
             <div>
               <p class="text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-forge">{{ provider.label }}</p>
               <h2 id="cart-title" class="mt-1 font-display text-2xl font-semibold tracking-tight">
-                {{ showCheckout ? 'Demo checkout' : 'Your cart' }}
+                {{ showCheckout ? 'Demo checkout' : status === 'form' ? 'Where should we ship?' : 'Your cart' }}
               </h2>
             </div>
             <button type="button" class="grid h-9 w-9 place-items-center rounded-full border border-bone-300 hover:border-ink" aria-label="Close" @click="close">
@@ -68,16 +91,57 @@ function goToCheckout() {
             </button>
           </div>
 
+          <!-- Ship to (region rules are checked by the server against this) -->
+          <form v-if="status === 'form'" class="mt-6 space-y-4" @submit.prevent="canSubmit && addToCart()">
+            <label class="block text-sm">
+              <span class="mb-1.5 block text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-graphite-400">Country</span>
+              <select
+                :value="shipTo.country"
+                class="h-11 w-full rounded-xl border border-bone-300 bg-white px-3 text-sm focus:border-ink focus:outline-none"
+                @change="setCountry(($event.target as HTMLSelectElement).value)"
+              >
+                <option v-for="d in DESTINATIONS" :key="d.code" :value="d.code">{{ d.name }}</option>
+              </select>
+            </label>
+            <label v-if="destination?.regions" class="block text-sm">
+              <span class="mb-1.5 block text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-graphite-400">
+                {{ shipTo.country === 'US' ? 'State' : 'Province' }}
+              </span>
+              <select
+                v-model="shipTo.region"
+                class="h-11 w-full rounded-xl border border-bone-300 bg-white px-3 text-sm focus:border-ink focus:outline-none"
+              >
+                <option :value="null" disabled>Choose…</option>
+                <option v-for="r in destination.regions" :key="r.code" :value="r.code">{{ r.name }}</option>
+              </select>
+            </label>
+            <p class="text-xs leading-relaxed text-graphite">
+              Some finishes have regional shipping restrictions — we check them before your cart is created.
+            </p>
+            <button
+              type="submit"
+              :disabled="!canSubmit"
+              class="h-12 w-full rounded-full bg-ink text-sm font-medium text-bone transition-colors hover:bg-ink-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Check availability &amp; add to cart
+            </button>
+          </form>
+
           <!-- Working -->
-          <div v-if="status === 'working'" class="flex items-center gap-3 py-10 text-sm text-graphite" role="status">
+          <div v-else-if="status === 'working'" class="flex items-center gap-3 py-10 text-sm text-graphite" role="status">
             <span class="h-5 w-5 animate-spin rounded-full border-2 border-bone-300 border-t-ink" aria-hidden="true" />
             Validating and pricing your build on the server…
           </div>
 
           <!-- Error -->
           <div v-else-if="status === 'error'" class="py-6" role="alert">
-            <p class="text-sm font-medium text-forge-600">{{ error }}</p>
-            <button type="button" class="mt-4 h-10 rounded-full bg-ink px-5 text-sm font-medium text-bone" @click="addToCart">Try again</button>
+            <p v-if="errorCode === 'restricted'" class="text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-forge">Can't ship to this destination</p>
+            <p class="mt-1 text-sm font-medium text-forge-600">{{ error }}</p>
+            <div class="mt-4 flex flex-wrap gap-2">
+              <button v-if="errorCode === 'restricted' && finishRestricted" type="button" class="h-10 rounded-full bg-ink px-5 text-sm font-medium text-bone" @click="changeFinish">Change finish</button>
+              <button v-if="errorCode === 'restricted'" type="button" class="h-10 rounded-full border border-ink px-5 text-sm font-medium" @click="status = 'form'">Change destination</button>
+              <button v-else type="button" class="h-10 rounded-full bg-ink px-5 text-sm font-medium text-bone" @click="addToCart">Try again</button>
+            </div>
           </div>
 
           <!-- Demo checkout explanation -->
@@ -90,7 +154,7 @@ function goToCheckout() {
             <p>
               Cart <code class="rounded bg-bone-200 px-1 text-xs">{{ cart.id }}</code> · build
               <code class="rounded bg-bone-200 px-1 text-xs">{{ quote?.buildId }}</code> · {{ cart.lines.length }} lines ·
-              {{ formatPrice(cart.cost.total.amount) }}
+              {{ money(cart.cost.total) }}
             </p>
             <button type="button" class="h-11 w-full rounded-full border border-ink text-sm font-medium" @click="showCheckout = false">Back to cart</button>
           </div>
@@ -106,7 +170,7 @@ function goToCheckout() {
                     {{ a.key }}: {{ a.value }}
                   </p>
                 </div>
-                <span class="tabular shrink-0 text-sm">{{ line.cost.amount === 0 ? 'Included' : formatPrice(line.cost.amount) }}</span>
+                <span class="tabular shrink-0 text-sm">{{ line.cost.amount === 0 ? 'Included' : money(line.cost) }}</span>
               </li>
             </ul>
 
@@ -117,16 +181,20 @@ function goToCheckout() {
                   <p class="text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-graphite-400">Total</p>
                   <p class="text-xs text-graphite">Priced by the server at {{ quotedAt }}</p>
                 </div>
-                <span class="tabular font-display text-3xl font-semibold">{{ formatPrice(cart.cost.total.amount) }}</span>
+                <span class="tabular font-display text-3xl font-semibold">{{ money(cart.cost.total) }}</span>
               </div>
               <p v-if="!priceMatches" class="mt-2 text-xs font-medium text-forge-600">
-                The server price differs from the price shown in the configurator — the server price applies.
+                <template v-if="!currencyMatches">The store charges this destination in {{ cart.cost.total.currencyCode }} — the store's price applies.</template>
+                <template v-else>The server price differs from the price shown in the configurator — the server price applies.</template>
               </p>
 
               <button type="button" class="mt-4 h-12 w-full rounded-full bg-ink text-sm font-medium text-bone transition-colors hover:bg-ink-700" @click="goToCheckout">
                 Continue to checkout
               </button>
-              <p class="mt-3 text-center text-xs text-graphite-400">Build {{ quote?.buildId }} · Demo pricing in USD</p>
+              <div class="mt-3 flex items-center justify-between gap-3 text-xs text-graphite-400">
+                <span>Build {{ quote?.buildId }} · {{ provider.checkout.isDemo ? 'Demo pricing' : 'Priced by Shopify' }} in {{ cart.cost.total.currencyCode }}</span>
+                <button type="button" class="font-medium text-ink underline-offset-4 hover:underline" @click="openPackingSlip">Packing slip / BOM ↗</button>
+              </div>
             </div>
           </div>
         </div>

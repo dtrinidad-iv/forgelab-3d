@@ -12,12 +12,16 @@
  * Every call returns what ACTUALLY happened, so the UI never claims a change that didn't occur.
  * Pure Three.js — no Vue — so it is unit-tested in Node against the real GLB files.
  */
-import { Color, type Material, type Mesh, MeshPhysicalMaterial, MeshStandardMaterial, type Object3D } from 'three'
+import { type BufferGeometry, Color, type Material, type Mesh, MeshPhysicalMaterial, MeshStandardMaterial, type Object3D, type Texture } from 'three'
 import type { ComponentId, GroupVisual, ModelAssetMap } from '../../config/assetMap'
 import type { GroupId, PaintFinish, PaintSpec } from '../../types/configurator'
 import { type AssetMappingResult, resolveAssetMap } from './assetMapping'
-import { basePositionOf } from './explodedView'
+import { basePositionOf, baseQuaternionOf } from './explodedView'
 import { createForgedUniforms, installForgedPattern } from './forgedPattern'
+import { planarTopUv } from './planarUv'
+
+/** Material name of the saddle's cover surface — the target for one-of-a-kind cover photos. */
+export const COVER_MATERIAL = 'saddle_cover'
 
 export type VisualState = 'applied' | 'loading' | 'unsupported' | 'missing-asset' | 'error'
 
@@ -30,6 +34,8 @@ export interface VisualStatus {
 
 export interface VisualTarget {
   paint?: PaintSpec
+  /** Photo URL of a one-of-a-kind saddle cover (mapped onto the saddle), or null. */
+  coverImage?: string | null
   /** Selected option id per group (null = nothing selected). */
   variants: Partial<Record<GroupId, string | null>>
 }
@@ -75,6 +81,9 @@ export class ConfiguratorScene {
   readonly paintMaterial = new MeshPhysicalMaterial({ name: 'forgelab_paint' })
   readonly tapeMaterial = new MeshStandardMaterial({ name: 'forgelab_bar_tape' })
   readonly forgedUniforms = createForgedUniforms()
+  /** Photo-textured material for a one-of-a-kind cover; map set by setCoverTexture(). */
+  readonly coverMaterial = new MeshStandardMaterial({ name: 'forgelab_unique_cover', roughness: 0.58, metalness: 0 })
+  private readonly uvGeometries = new WeakMap<BufferGeometry, BufferGeometry>()
 
   private mapping: AssetMappingResult
   private readonly templates = new Map<string, Promise<Object3D>>()
@@ -211,7 +220,50 @@ export class ConfiguratorScene {
     // Newly mounted parts arrive with their own copies of the named materials.
     this.takeOverMaterials(this.map.materials.paint, this.paintMaterial, this.root)
     this.takeOverMaterials(this.map.materials.barTape, this.tapeMaterial, this.root)
+    this.applyCover() // a new saddle keeps the chosen unique cover
     return { state: 'applied', kind: 'component' }
+  }
+
+  /**
+   * Shows a photographed one-of-a-kind cover on the saddle (planar top-down projection, so the
+   * exact photo covers the part once), or restores the standard cover when null.
+   */
+  setCoverTexture(texture: Texture | null): VisualStatus {
+    const previous = this.coverMaterial.map
+    this.coverMaterial.map = texture
+    this.coverMaterial.needsUpdate = true
+    if (previous && previous !== texture) previous.dispose()
+    const count = this.applyCover()
+    if (texture && count === 0) return { state: 'missing-asset', kind: 'material', message: 'This model has no saddle cover surface.' }
+    return { state: 'applied', kind: 'material' }
+  }
+
+  /** Returns how many cover meshes are showing the unique cover. */
+  private applyCover(): number {
+    const texture = this.coverMaterial.map
+    let count = 0
+    for (const mesh of meshesOf(this.root)) {
+      const original = mesh.userData.coverOriginal as { material: Material; geometry: BufferGeometry } | undefined
+      const baseMaterial = original?.material ?? (mesh.material as Material)
+      if (Array.isArray(baseMaterial) || baseMaterial.name !== COVER_MATERIAL) continue
+      if (texture) {
+        if (!original) mesh.userData.coverOriginal = { material: mesh.material, geometry: mesh.geometry }
+        const source = (mesh.userData.coverOriginal as { geometry: BufferGeometry }).geometry
+        let uvGeometry = this.uvGeometries.get(source)
+        if (!uvGeometry) {
+          uvGeometry = planarTopUv(source)
+          this.uvGeometries.set(source, uvGeometry)
+        }
+        mesh.geometry = uvGeometry
+        mesh.material = this.coverMaterial
+        count++
+      } else if (original) {
+        mesh.geometry = original.geometry
+        mesh.material = original.material
+        delete mesh.userData.coverOriginal
+      }
+    }
+    return count
   }
 
   /** Advance animations. Call once per frame. */
@@ -236,6 +288,8 @@ export class ConfiguratorScene {
     this.disposed = true
     this.paintMaterial.dispose()
     this.tapeMaterial.dispose()
+    this.coverMaterial.map?.dispose()
+    this.coverMaterial.dispose()
     const freed = new Set<unknown>()
     const free = (o: Object3D) =>
       meshesOf(o).forEach((m) => {
@@ -330,7 +384,9 @@ export class ConfiguratorScene {
     // Use the assembled position even if the view is currently exploded.
     replacement.position.copy(basePositionOf(current))
     if (current.userData.basePosition) replacement.userData.basePosition = basePositionOf(current)
-    replacement.quaternion.copy(current.quaternion)
+    // Rest rotation too: a playing animation may have the old part mid-spin.
+    replacement.quaternion.copy(baseQuaternionOf(current))
+    if (current.userData.baseQuaternion) replacement.userData.baseQuaternion = baseQuaternionOf(current)
     replacement.scale.copy(current.scale)
 
     // Re-home parts mounted on anchors inside the outgoing node (stem → handlebar).

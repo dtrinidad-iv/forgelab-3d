@@ -7,7 +7,8 @@ import type { GroupId, Selections } from '~/types/configurator'
  */
 
 export interface PriceLine {
-  group: GroupId
+  /** 'uniqueCover' = a one-of-a-kind piece priced from its own record, not the catalog. */
+  group: GroupId | 'uniqueCover'
   label: string
   optionId: string
   name: string
@@ -22,7 +23,13 @@ export interface PriceBreakdown {
   missing: GroupId[]
 }
 
-export function calculatePrice(selections: Selections): PriceBreakdown {
+export interface ExtraLine {
+  id: string
+  name: string
+  price: number
+}
+
+export function calculatePrice(selections: Selections, extras: ExtraLine[] = []): PriceBreakdown {
   const lines: PriceLine[] = []
   const missing: GroupId[] = []
 
@@ -35,6 +42,8 @@ export function calculatePrice(selections: Selections): PriceBreakdown {
     }
     lines.push({ group, label: GROUPS[group].label, optionId: option.id, name: option.name, price: option.price })
   }
+
+  for (const e of extras) lines.push({ group: 'uniqueCover', label: 'Unique cover', optionId: e.id, name: e.name, price: e.price })
 
   return {
     lines,

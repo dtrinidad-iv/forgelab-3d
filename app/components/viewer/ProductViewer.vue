@@ -9,7 +9,7 @@
  *
  * Three.js objects live in plain variables on purpose — Vue proxies break Three internals.
  */
-import { Group, Mesh, MeshBasicMaterial, type Object3D, RingGeometry, Vector3 } from 'three'
+import { Group, Mesh, MeshBasicMaterial, type Object3D, RingGeometry, SRGBColorSpace, type Texture, TextureLoader, Vector3 } from 'three'
 import { FORGELAB_ROAD_BIKE, type ModelAssetMap } from '~/config/assetMap'
 import { GROUPS } from '~/config/catalog'
 import type { GroupId } from '~/types/configurator'
@@ -20,6 +20,7 @@ import { disposeObject3D } from '~/utils/three/dispose'
 import { AR_UNAVAILABLE_HASH, exportUsdz, isAndroid, openQuickLook, sceneViewerIntent, supportsQuickLook, supportsWebXRAR } from '~/utils/three/ar'
 import { ExplodedView } from '~/utils/three/explodedView'
 import { LIGHTING_PRESETS, type LightingPresetId, LightingRig } from '~/utils/three/lighting'
+import { RidePlayer } from '~/utils/three/ridePlayer'
 import { formatReport, inspectModel } from '~/utils/three/inspectModel'
 import { type CameraView, frameObject, loadModel, ModelNotFoundError } from '~/utils/three/loadModel'
 import { createPlaceholderBike } from '~/utils/three/placeholder'
@@ -54,6 +55,8 @@ const errorMessage = ref('')
 const canRetry = ref(true)
 const missingComponents = ref<string[]>([])
 const isExploded = ref(false)
+const isRiding = ref(false)
+const rideAvailable = ref(false)
 const lighting = ref<LightingPresetId>('studio')
 // ---- AR state ----
 const arQuickLook = ref(false) // iOS AR Quick Look available
@@ -87,6 +90,8 @@ let mapping: AssetMappingResult | null = null
 let configurator: ConfiguratorScene | null = null
 let exploded: ExplodedView | null = null
 let rig: LightingRig | null = null
+let ride: RidePlayer | null = null
+let lastFrame = 0
 /** Last target handed to the scene (plain copy, used to diff). */
 let appliedTarget: VisualTarget | null = null
 let home: CameraView | null = null
@@ -142,6 +147,14 @@ function setLighting(id: LightingPresetId) {
   rig?.set(id)
 }
 
+/** Plays the model's authored "ride" glTF animation (cranks + wheels). */
+function toggleRide() {
+  if (!ride?.available) return
+  isRiding.value = !isRiding.value
+  if (isRiding.value) ride.play()
+  else ride.stop()
+}
+
 /** Exploded assembly toggle; pulls the camera back so the spread-out parts stay in frame. */
 function toggleExploded() {
   if (!exploded) return
@@ -171,8 +184,10 @@ function renderLoop(now: number, frame?: XRFrame) {
     configurator?.update(now)
     exploded?.update(now)
     rig?.update(now)
+    ride?.update(lastFrame ? Math.min((now - lastFrame) / 1000, 0.1) : 0)
     ctx.controls.update()
   }
+  lastFrame = now
   ctx.renderer.render(ctx.scene, ctx.camera)
 }
 
@@ -413,6 +428,27 @@ function applyTarget(next: VisualTarget | undefined, animate = true): Promise<un
   return Promise.all(jobs)
 }
 
+/** Loads the one-of-a-kind cover photo and maps it onto the saddle (latest request wins). */
+let coverRequest = 0
+async function applyCoverImage(url: string | null | undefined) {
+  const scene = configurator
+  if (!scene || !ctx) return
+  const request = ++coverRequest
+  if (!url) {
+    scene.setCoverTexture(null)
+    return
+  }
+  try {
+    const texture: Texture = await new TextureLoader().loadAsync(url)
+    if (request !== coverRequest || scene !== configurator) return texture.dispose()
+    texture.colorSpace = SRGBColorSpace
+    texture.anisotropy = ctx.renderer.capabilities.getMaxAnisotropy()
+    scene.setCoverTexture(texture)
+  } catch (err) {
+    console.error('[ProductViewer] Cover photo failed to load:', err)
+  }
+}
+
 function markPlaceholderStatuses() {
   const groups = new Set<GroupId>(['paint', ...((Object.keys(props.target?.variants ?? {}) as GroupId[]))])
   statuses.value = Object.fromEntries(
@@ -470,8 +506,11 @@ async function load() {
     configurator = new ConfiguratorScene(model, props.assetMap, loadComponent)
     exploded = Object.keys(props.assetMap.explode).length ? new ExplodedView(model, props.assetMap.explode) : null
     isExploded.value = false
+    ride = new RidePlayer(model)
+    rideAvailable.value = ride.available
+    isRiding.value = false
     // Apply the saved/current configuration before revealing the model.
-    await applyTarget(props.target, false)
+    await Promise.all([applyTarget(props.target, false), applyCoverImage(props.target?.coverImage)])
     if (disposed || signal.aborted) return
     status.value = 'ready'
     // Catch selections made while the model was loading.
@@ -531,9 +570,16 @@ onMounted(() => {
 
 watch(() => props.assetMap.url, () => load())
 watch(
+  () => props.target?.coverImage,
+  (url) => {
+    if (status.value === 'ready') void applyCoverImage(url).then(scheduleUsdz)
+  },
+)
+watch(
   () => props.target,
   (next) => {
-    if (status.value === 'ready') void applyTarget(next).then(scheduleUsdz)
+    // Swapped parts must be re-bound to the ride animation.
+    if (status.value === 'ready') void applyTarget(next).then(() => ride?.rebind()).then(scheduleUsdz)
     else if (status.value === 'placeholder') markPlaceholderStatuses()
   },
   { deep: true },
@@ -555,6 +601,8 @@ onBeforeUnmount(() => {
   if (!ctx) return
   void disposeConfigurator()
   exploded = null
+  ride?.stop()
+  ride = null
   rig = null
   componentCache.clear()
   if (modelRoot) disposeObject3D(modelRoot)
@@ -745,6 +793,19 @@ defineExpose({
         </svg>
         <span class="sm:hidden">{{ arQuickLook && !usdzReady ? '…' : 'AR' }}</span>
         <span class="hidden sm:inline">{{ arQuickLook && !usdzReady ? 'Preparing AR…' : 'View in AR' }}</span>
+      </button>
+      <button
+        v-if="status === 'ready' && rideAvailable"
+        type="button"
+        class="flex h-10 items-center gap-2 rounded-full border px-3 text-sm font-medium backdrop-blur transition-colors duration-200 sm:px-4"
+        :class="isRiding ? 'border-ink bg-ink text-bone' : 'border-bone-300 bg-white/80 text-ink hover:bg-bone-200'"
+        :aria-pressed="isRiding"
+        title="Play the ride animation (authored glTF clip)"
+        @click="toggleRide"
+      >
+        <svg v-if="!isRiding" viewBox="0 0 16 16" class="h-4 w-4" aria-hidden="true"><path d="M5 3.5v9l7-4.5z" fill="currentColor" /></svg>
+        <svg v-else viewBox="0 0 16 16" class="h-4 w-4" aria-hidden="true"><path d="M4.5 3.5h2.5v9H4.5zM9 3.5h2.5v9H9z" fill="currentColor" /></svg>
+        <span class="hidden sm:inline">{{ isRiding ? 'Stop' : 'Ride' }}</span>
       </button>
       <button
         v-if="status === 'ready'"

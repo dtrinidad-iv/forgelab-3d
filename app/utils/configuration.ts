@@ -1,5 +1,6 @@
 import { CATALOG, DEFAULT_CONFIGURATION, GROUP_IDS } from '~/config/catalog'
 import type { CatalogOption, Configuration, GroupId, PaintFinish, PaintSpec, Selections } from '~/types/configurator'
+import { PIECE_ID } from '~/types/pieces'
 
 /** Pure helpers for configuration data. No Vue. */
 
@@ -11,6 +12,7 @@ export function cloneDefaultConfiguration(): Configuration {
   return {
     selections: { ...DEFAULT_CONFIGURATION.selections },
     customPaint: { ...DEFAULT_CONFIGURATION.customPaint },
+    uniqueCover: null,
   }
 }
 
@@ -26,7 +28,7 @@ export function sanitizeConfiguration(input: unknown): Configuration {
   const fallback = cloneDefaultConfiguration()
   if (!input || typeof input !== 'object') return fallback
 
-  const raw = input as { selections?: Record<string, unknown>; customPaint?: Record<string, unknown> }
+  const raw = input as { selections?: Record<string, unknown>; customPaint?: Record<string, unknown>; uniqueCover?: unknown }
   const selections = { ...fallback.selections } as Selections
 
   for (const group of GROUP_IDS) {
@@ -42,7 +44,10 @@ export function sanitizeConfiguration(input: unknown): Configuration {
     finish: FINISHES.includes(finish as PaintFinish) ? (finish as PaintFinish) : fallback.customPaint.finish,
   }
 
-  return { selections, customPaint }
+  // Shape-checked only; whether the piece exists / is unsold is decided by the server.
+  const uniqueCover = typeof raw.uniqueCover === 'string' && PIECE_ID.test(raw.uniqueCover) ? raw.uniqueCover : null
+
+  return { selections, customPaint, uniqueCover }
 }
 
 /** The paint actually applied: the preset's spec, or the customer's colour for the custom option. */

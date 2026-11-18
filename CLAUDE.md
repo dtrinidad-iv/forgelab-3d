@@ -11,7 +11,7 @@ Seven steps: Frame → Size → Paint → Groupset → Wheels → Cockpit (handl
 - Vue 3 `<script setup lang="ts">`, **TypeScript strict** (`npm run typecheck` must pass with 0 errors)
 - **Tailwind CSS** (`@nuxtjs/tailwindcss`, v3), fonts via `@nuxt/fonts` (Inter, Space Grotesk)
 - **Three.js** (GLTFLoader, OrbitControls, PBR materials) for the viewer
-- Commerce: mock providers now, **Shopify Storefront API later**. No Shopify packages until that phase.
+- Commerce: mock provider by default; **Shopify Storefront API** provider when `NUXT_PUBLIC_COMMERCE_PROVIDER=shopify` (server-side private token, no Shopify packages). See docs/shopify-integration.md.
 - Backend (Laravel/MySQL): deferred. Frontend must not depend on it.
 - Package manager: **npm**
 
@@ -21,12 +21,16 @@ Seven steps: Frame → Size → Paint → Groupset → Wheels → Cockpit (handl
 - `npm test` — Vitest: pricing, configuration, 3D swap engine (runs against the real GLBs)
 - `npm run generate:bike` — regenerate the procedural bike GLBs into `public/models/bicycle/`
 - `npm run inspect:glb -- <file.glb> [--out report.md]` — asset inspection report
+- `npm run shopify:csv` — Shopify product import (`shopify/forgelab-products.csv`) from the catalog
 - `npm run build` / `npm run preview` (stop `dev` first — Nuxt refuses to build while dev runs)
 
 ## Structure
 ```
 app/
   pages/index.vue            Configurator layout
+  pages/admin/index.vue      Studio: upload one-of-a-kind covers (NUXT_ADMIN_PASSWORD)
+  pages/packing-slip.vue     Printable BOM (data handed over via localStorage)
+  pages/how-its-built.vue    Case study for reviewers
   components/                Auto-imported WITHOUT path prefix (<StepNav>, not <BuilderStepNav>)
     builder/                 Step nav, option groups/cards, paint picker, summary, review, footer
     viewer/ProductViewer.vue Three.js viewer (client-only)
@@ -34,19 +38,22 @@ app/
   composables/
     useConfigurator.ts       Selections + custom paint state (useState)
     useConfiguratorSteps.ts  Step navigation, completion, required-selection validation, reset
-    usePricing.ts            Reactive wrapper over utils/pricing.ts
+    usePricing.ts            Reactive wrapper over utils/pricing.ts (+ displayTotal in the chosen currency)
+    useCurrency.ts / useInventory.ts / usePieces.ts / useCommerce.ts   Currency cookie, stock, unique pieces, cart flow
     useCompatibility.ts      Reactive wrapper over utils/compatibility.ts (issues, card conflicts, fixes)
     useVisualStatus.ts       What the 3D viewer actually did per group
   config/catalog.ts          Steps, groups, options, prices, defaults — ALL catalog data
   config/compatibility.ts    FICTIONAL demo compatibility rules (data + checks)
+  config/currency.ts, inventory.ts, shipping.ts   Demo FX rates, stock per SKU, region shipping rules
   config/assetMap.ts         Logical component ids → model nodes/materials; per-group visuals (variant GLBs, tape colours, notes)
   plugins/configuration-persistence.ts   Cookie persistence (SSR-safe)
   types/                     Domain types
   utils/                     Pure logic (no Vue): pricing, configuration, compatibility, exportConfiguration (forgelab.configuration/v1)
   utils/three/               Scene, loading, inspectModel, assetMapping, configuratorScene (paint + part swaps),
-                             explodedView, lighting (presets), forgedPattern (procedural shader), ar (USDZ, WebXR, Scene Viewer intent),
+                             explodedView, ridePlayer (glTF "ride" clip), planarUv, lighting (presets), forgedPattern (procedural shader), ar (USDZ, WebXR, Scene Viewer intent),
                              assembleConfiguration + exportGlb (server-side model for Android AR), dispose, placeholder
 server/api/ar/model.glb.get.ts  Assembles the exact configured bike as a plain GLB (Android Scene Viewer)
+server/api/pieces, server/api/admin/pieces   Unique pieces (Nitro storage: Netlify Blobs live, .data/ locally)
 tests/                       Vitest unit tests (Node)
 scripts/bike/                Procedural bike generator (Node, tsx) — source of all GLBs
 scripts/inspect-glb.ts       CLI inspector

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { CATALOG, DEFAULT_CONFIGURATION, GROUP_IDS } from '~/config/catalog'
+import type { GroupId } from '~/types/configurator'
 import { calculatePrice, formatPrice } from '~/utils/pricing'
 
 const full = { ...DEFAULT_CONFIGURATION.selections, size: 'm' }
@@ -17,7 +18,7 @@ describe('pricing engine', () => {
     expect(result.missing).toEqual([])
     expect(result.lines.map((l) => l.group)).toEqual(GROUP_IDS)
     for (const line of result.lines) {
-      expect(line.price).toBe(CATALOG[line.group].find((o) => o.id === line.optionId)!.price)
+      expect(line.price).toBe(CATALOG[line.group as GroupId].find((o) => o.id === line.optionId)!.price)
     }
   })
 

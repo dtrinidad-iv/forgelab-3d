@@ -17,5 +17,6 @@ export async function loadGlb(url: string): Promise<Object3D> {
   }
   const arrayBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength) as ArrayBuffer
   const gltf = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).parseAsync(arrayBuffer, '')
+  gltf.scene.animations = gltf.animations
   return gltf.scene
 }

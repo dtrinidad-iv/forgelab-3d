@@ -2,10 +2,11 @@
 import { GROUPS } from '~/config/catalog'
 
 const { steps, stepIndex, isFirst, isLast, next, prev, currentMissing, showValidation } = useConfiguratorSteps()
-const { total, breakdown } = usePricing()
+const { total, displayTotal, breakdown } = usePricing()
 const { errors } = useCompatibility()
-const { addToCart, status: cartStatus } = useCommerce()
-const canCheckout = computed(() => breakdown.value.missing.length === 0 && errors.value.length === 0)
+const { openCart, status: cartStatus } = useCommerce()
+const { unavailable } = useInventory()
+const canCheckout = computed(() => breakdown.value.missing.length === 0 && errors.value.length === 0 && unavailable.value.length === 0)
 
 const nextLabel = computed(() => {
   const upcoming = steps[stepIndex.value + 1]
@@ -19,6 +20,7 @@ const hint = computed(() => {
   if (isLast.value) {
     if (breakdown.value.missing.length) return `${breakdown.value.missing.length} required selection${breakdown.value.missing.length > 1 ? 's' : ''} missing`
     if (errors.value.length) return `Resolve ${errors.value.length} compatibility issue${errors.value.length > 1 ? 's' : ''} before checkout`
+    if (unavailable.value.length) return `Out of stock: ${unavailable.value.map((u) => u.label).join(', ')}`
   }
   return ''
 })
@@ -32,7 +34,7 @@ const hint = computed(() => {
       <!-- Running total (the configuration column's footer on desktop, bottom bar on mobile) -->
       <div class="mr-auto">
         <p class="text-[0.65rem] font-semibold uppercase tracking-[0.12em] text-graphite-400">Total</p>
-        <PriceDisplay :value="total" />
+        <PriceDisplay :value="displayTotal" />
       </div>
 
       <button
@@ -61,7 +63,7 @@ const hint = computed(() => {
         type="button"
         :disabled="!canCheckout || cartStatus === 'working'"
         class="h-12 rounded-full bg-forge px-6 text-sm font-medium text-white transition-colors hover:bg-forge-600 disabled:cursor-not-allowed disabled:opacity-60"
-        @click="addToCart"
+        @click="openCart"
       >
         {{ cartStatus === 'working' ? 'Adding…' : 'Add to cart' }}
       </button>

@@ -12,9 +12,11 @@
     "postinstall": "nuxt prepare",
     "generate:bike": "tsx scripts/bike/generate.ts",
     "inspect:glb": "tsx scripts/inspect-glb.ts",
+    "shopify:csv": "tsx scripts/shopify-csv.ts",
     "test": "vitest run"
   },
   "dependencies": {
+    "@netlify/blobs": "^11.1.9",
     "nuxt": "^3.21.11",
     "three": "^0.187.0",
     "vue": "^3.5.45",

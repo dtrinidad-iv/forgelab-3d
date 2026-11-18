@@ -54,8 +54,16 @@ Run `npm test` and `npm run typecheck` after any change.
 9. **Add to cart** — server validates and prices the build (SKUs, custom paint as line attributes),
    "Continue to checkout" explains the Shopify hand-off. Mention tampered requests are rejected.
 10. **Reload** the page — the whole build (including 3D parts) comes back.
-11. **Viewer tools** — Explode/Assemble, switch lighting presets, and on a phone tap **AR** to place
-    the exact build in the room at 1:1.
+11. **Viewer tools** — **Ride** (authored glTF animation), Explode/Assemble, lighting presets, and on
+    a phone tap **AR** to place the exact build in the room at 1:1.
+12. **Store** — switch the header currency to CA$: every price and the cart follow (server-priced).
+    Size XS on Titanium is sold out; Campagnolo shows "Only 3 left". With Forged Pattern paint, ship to
+    California → blocked by a region rule ("Change finish" / "Change destination"); Texas works.
+    Open **Packing slip / BOM** from the cart.
+13. **Unique pieces** — in `/admin`, upload a photo; it appears under Cockpit → One-of-a-kind cover,
+    is shown on the 3D saddle and adds an inventory-of-one line to the cart. Mark it sold → checkout
+    is blocked and the card shows Sold.
 
 Talking points: original brand/assets; honest 3D labels; server-side pricing; Shopify-ready
-interfaces; 53 automated tests incl. swap tests against the real model files.
+interfaces; 77 automated tests incl. swap and animation tests against the real model files.
+Technical write-up for reviewers: `/how-its-built`.

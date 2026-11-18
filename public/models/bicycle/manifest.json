@@ -17,7 +17,7 @@
   "assets": [
     {
       "file": "/models/bicycle/road-bike.glb",
-      "bytes": 641820,
+      "bytes": 643440,
       "meshes": 32,
       "triangles": 70832,
       "kind": "assembly"
@@ -204,7 +204,7 @@
     },
     {
       "file": "/models/bicycle/components/groupset-shimano-demo.glb",
-      "bytes": 182200,
+      "bytes": 182168,
       "meshes": 7,
       "triangles": 14240,
       "kind": "component",
@@ -213,7 +213,7 @@
     },
     {
       "file": "/models/bicycle/components/groupset-sram-demo.glb",
-      "bytes": 182176,
+      "bytes": 182144,
       "meshes": 7,
       "triangles": 14240,
       "kind": "component",
@@ -222,7 +222,7 @@
     },
     {
       "file": "/models/bicycle/components/groupset-campagnolo-demo.glb",
-      "bytes": 189276,
+      "bytes": 189264,
       "meshes": 6,
       "triangles": 14432,
       "kind": "component",

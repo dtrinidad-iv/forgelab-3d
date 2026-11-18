@@ -4,6 +4,8 @@
  * Shapes intentionally mirror the Storefront cart model (variant ids, line attributes, checkoutUrl).
  * See docs/shopify-integration.md.
  */
+import type { CurrencyCode } from '~/config/currency'
+import type { ShippingIssue, ShipTo } from '~/config/shipping'
 import type { GroupId, PaintSpec } from '~/types/configurator'
 import type { CompatibilityIssue } from '~/utils/compatibility'
 
@@ -23,6 +25,12 @@ export interface OrderConfiguration {
   model: string
   selections: Partial<Record<GroupId, string | null>>
   customPaint?: PaintSpec | null
+  /** Presentment currency (server converts; Shopify: derived from the buyer's country/market). */
+  currency?: CurrencyCode
+  /** Destination for region rules (Shopify: the delivery address in checkout). */
+  shipTo?: ShipTo
+  /** One-of-a-kind saddle cover id; the server looks up its price and availability. */
+  uniqueCover?: string | null
 }
 
 /** A purchasable variant a configuration maps to (Shopify: a ProductVariant). */
@@ -47,6 +55,9 @@ export interface Quote {
   valid: boolean
   missing: GroupId[]
   issues: CompatibilityIssue[]
+  /** Region rules that block shipping this build to `shipTo` (empty = shippable). */
+  shippingIssues: ShippingIssue[]
+  shipTo: ShipTo | null
   lines: ComponentVariant[]
   total: Money
   quotedAt: string
@@ -83,7 +94,7 @@ export interface ProductCatalogProvider {
 }
 
 export interface CartProvider {
-  createCart(lines: CartLineInput[], attributes: Attribute[]): Promise<Cart>
+  createCart(lines: CartLineInput[], attributes: Attribute[], currency?: CurrencyCode): Promise<Cart>
 }
 
 export interface CheckoutProvider {
@@ -105,7 +116,7 @@ export interface CommerceProvider {
 export class CommerceError extends Error {
   constructor(
     message: string,
-    readonly code: 'invalid-configuration' | 'incomplete' | 'incompatible' | 'unavailable' | 'network' | 'not-implemented',
+    readonly code: 'invalid-configuration' | 'incomplete' | 'incompatible' | 'unavailable' | 'restricted' | 'network' | 'not-implemented',
     readonly details?: unknown,
   ) {
     super(message)

@@ -11,7 +11,7 @@
 import { mkdir, rm, writeFile } from 'node:fs/promises'
 import { dirname, join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { Group, type Object3D } from 'three'
+import { AnimationClip, Group, type Object3D, Quaternion, QuaternionKeyframeTrack, Vector3 } from 'three'
 import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js'
 import { Logger, NodeIO } from '@gltf-transform/core'
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions'
@@ -93,9 +93,30 @@ async function compress(glb: ArrayBuffer): Promise<Uint8Array> {
   return io.writeBinary(doc)
 }
 
-async function exportGlb(object: Object3D, file: string) {
+/**
+ * "ride" clip, authored into the GLB like a CAD/Blender animation would be: over 2 s the cranks turn
+ * once and the wheels ~3 times (≈ 52/17 gearing), forward (clockwise seen from the drive side).
+ * Tracks target nodes by NAME, so they keep working when parts are swapped (the viewer re-binds).
+ */
+function rideClip(): AnimationClip {
+  const duration = 2
+  const spin = (node: string, turns: number) => {
+    const steps = Math.ceil(Math.abs(turns) * 8) // ≤ 45° per key so slerp follows the right way round
+    const times: number[] = []
+    const values: number[] = []
+    const q = new Quaternion()
+    for (let i = 0; i <= steps; i++) {
+      times.push((i / steps) * duration)
+      q.setFromAxisAngle(new Vector3(0, 0, 1), -(i / steps) * turns * Math.PI * 2).toArray(values, values.length)
+    }
+    return new QuaternionKeyframeTrack(`${node}.quaternion`, times, values)
+  }
+  return new AnimationClip('ride', duration, [spin('crankset', 1), spin('wheel_front', 3), spin('wheel_rear', 3)])
+}
+
+async function exportGlb(object: Object3D, file: string, animations: AnimationClip[] = []) {
   const exporter = new GLTFExporter()
-  const raw = (await exporter.parseAsync(object, { binary: true, onlyVisible: false, copyright: COPYRIGHT } as Parameters<GLTFExporter['parseAsync']>[1])) as ArrayBuffer
+  const raw = (await exporter.parseAsync(object, { binary: true, onlyVisible: false, copyright: COPYRIGHT, animations } as Parameters<GLTFExporter['parseAsync']>[1])) as ArrayBuffer
   const data = process.env.NO_COMPRESS ? new Uint8Array(raw) : await compress(raw)
   await mkdir(dirname(file), { recursive: true })
   await writeFile(file, data)
@@ -117,9 +138,9 @@ function stats(object: Object3D) {
 
 async function main() {
   const manifest: Record<string, unknown>[] = []
-  const write = async (object: Object3D, path: string, meta: Record<string, string>) => {
+  const write = async (object: Object3D, path: string, meta: Record<string, string>, animations: AnimationClip[] = []) => {
     const file = join(OUT, path)
-    const bytes = await exportGlb(object, file)
+    const bytes = await exportGlb(object, file, animations)
     const s = stats(object)
     manifest.push({ file: `/models/bicycle/${path}`, bytes, ...s, ...meta })
     console.log(`  ✓ ${relative(ROOT, file).padEnd(58)} ${(bytes / 1024).toFixed(0).padStart(5)} KB  ${String(s.triangles).padStart(7)} tris`)
@@ -128,7 +149,7 @@ async function main() {
   console.log('ForgeLab bike generator')
   // Start clean so renamed/removed variants never linger in public/.
   await rm(join(OUT, 'components'), { recursive: true, force: true })
-  await write(buildBike(), 'road-bike.glb', { kind: 'assembly' })
+  await write(buildBike(), 'road-bike.glb', { kind: 'assembly' }, [rideClip()])
 
   for (const spec of FRAMES) {
     for (const size of SIZES) await write(buildFrameset(spec, size), `components/frame-${spec.id}-${size.id}.glb`, { kind: 'component', slot: 'frame', variant: `${spec.id}@${size.id}` })

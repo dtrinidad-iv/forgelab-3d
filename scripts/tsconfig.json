@@ -9,7 +9,9 @@
     "strict": true,
     "noEmit": true,
     "skipLibCheck": true,
-    "allowImportingTsExtensions": false
+    "allowImportingTsExtensions": false,
+    // shopify-csv.ts reuses the app's catalog modules, which import via "~/…".
+    "paths": { "~/*": ["../app/*"] }
   },
   "include": ["./**/*.ts", "../app/utils/three/inspectModel.ts", "../app/utils/three/assetMapping.ts", "../app/config/assetMap.ts"]
 }

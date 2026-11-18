@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { GROUPS, GROUP_IDS } from '~/config/catalog'
-import { formatPrice } from '~/utils/pricing'
 
+const { format: formatPrice } = useCurrency()
+const { selected: coverPiece } = usePieces()
 const { getOption, paint } = useConfigurator()
 const { goToGroup, canVisit, steps, currentStep, reset } = useConfiguratorSteps()
-const { total, breakdown } = usePricing()
+const { displayTotal, breakdown } = usePricing()
 const { errors } = useCompatibility()
 
 const rows = computed(() =>
@@ -55,6 +56,15 @@ function confirmReset() {
           </span>
         </button>
       </li>
+      <li v-if="coverPiece">
+        <button type="button" class="group flex w-full items-center justify-between gap-4 py-3 text-left" @click="goToGroup('saddle')">
+          <div class="min-w-0">
+            <p class="text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-graphite-400">Unique cover</p>
+            <p class="mt-0.5 truncate text-[0.93rem] font-medium">{{ coverPiece.name }}</p>
+          </div>
+          <span class="tabular shrink-0 text-sm text-graphite group-hover:text-ink">{{ formatPrice(coverPiece.price) }}</span>
+        </button>
+      </li>
     </ul>
 
     <div class="mt-5 flex items-end justify-between">
@@ -64,7 +74,7 @@ function confirmReset() {
           {{ breakdown.missing.length ? `${breakdown.missing.length} selection pending` : 'Demo pricing · USD' }}
         </p>
       </div>
-      <PriceDisplay :value="total" size="lg" />
+      <PriceDisplay :value="displayTotal" size="lg" />
     </div>
 
     <button

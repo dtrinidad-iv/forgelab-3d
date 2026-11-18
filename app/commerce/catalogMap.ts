@@ -10,11 +10,17 @@
 import { CATALOG, CURRENCY, GROUPS } from '~/config/catalog'
 import type { GroupId, PaintSpec, Selections } from '~/types/configurator'
 import { findOption } from '~/utils/configuration'
+import { stockFor } from '~/config/inventory'
 import type { ComponentVariant } from './types'
 
 const slug = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]+/g, '-')
 
 export const variantIdFor = (sku: string) => `mock://variant/${sku}`
+
+/** SKU for a frame + size combination (one purchasable variant). */
+export const frameSku = (frameId: string, sizeId: string) => `FL-FRAME-${slug(frameId)}-${slug(sizeId)}`
+/** SKU for any other component option. */
+export const componentSku = (group: GroupId, optionId: string) => `FL-${slug(group)}-${slug(optionId)}`
 
 /** Every purchasable mock variant, keyed by variant id (the server prices carts from this). */
 export function mockVariantTable(): Map<string, Omit<ComponentVariant, 'attributes' | 'available'>> {
@@ -23,11 +29,11 @@ export function mockVariantTable(): Map<string, Omit<ComponentVariant, 'attribut
     table.set(variantIdFor(sku), { groups, sku, variantId: variantIdFor(sku), title, price: { amount, currencyCode: CURRENCY } })
 
   for (const frame of CATALOG.frame) {
-    for (const size of CATALOG.size) add(['frame', 'size'], `FL-FRAME-${slug(frame.id)}-${slug(size.id)}`, `${frame.name} frameset — ${size.name}`, frame.price + size.price)
+    for (const size of CATALOG.size) add(['frame', 'size'], frameSku(frame.id, size.id), `${frame.name} frameset — ${size.name}`, frame.price + size.price)
   }
   for (const group of Object.keys(CATALOG) as GroupId[]) {
     if (group === 'frame' || group === 'size') continue
-    for (const o of CATALOG[group]) add([group], `FL-${slug(group)}-${slug(o.id)}`, `${GROUPS[group].label}: ${o.name}`, o.price)
+    for (const o of CATALOG[group]) add([group], componentSku(group, o.id), `${GROUPS[group].label}: ${o.name}`, o.price)
   }
   return table
 }
@@ -38,12 +44,12 @@ export function resolveMockVariants(selections: Selections, customPaint: PaintSp
   const out: ComponentVariant[] = []
   const push = (sku: string, attributes: ComponentVariant['attributes'] = []) => {
     const v = table.get(variantIdFor(sku))
-    if (v) out.push({ ...v, available: true, attributes })
+    if (v) out.push({ ...v, available: stockFor(sku) !== 0, attributes })
   }
 
   const frame = findOption('frame', selections.frame)
   const size = findOption('size', selections.size)
-  if (frame && size) push(`FL-FRAME-${slug(frame.id)}-${slug(size.id)}`)
+  if (frame && size) push(frameSku(frame.id, size.id))
 
   for (const group of Object.keys(CATALOG) as GroupId[]) {
     if (group === 'frame' || group === 'size') continue
@@ -52,7 +58,7 @@ export function resolveMockVariants(selections: Selections, customPaint: PaintSp
     const attrs = group === 'paint' && o.paint?.custom && customPaint
       ? [{ key: 'Paint colour', value: customPaint.color }, { key: 'Paint finish', value: customPaint.finish }]
       : []
-    push(`FL-${slug(group)}-${slug(o.id)}`, attrs)
+    push(componentSku(group, o.id), attrs)
   }
   return out
 }

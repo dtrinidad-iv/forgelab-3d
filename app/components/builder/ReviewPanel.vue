@@ -2,12 +2,14 @@
 import { FORGELAB_ROAD_BIKE } from '~/config/assetMap'
 import { GROUPS, GROUP_IDS } from '~/config/catalog'
 import { buildConfigurationExport, exportFileName } from '~/utils/exportConfiguration'
-import { formatPrice } from '~/utils/pricing'
 
+const { format: formatPrice } = useCurrency()
+const { selected: coverPiece } = usePieces()
 const { configuration, getOption, paint } = useConfigurator()
 const { goToGroup } = useConfiguratorSteps()
-const { total, breakdown } = usePricing()
+const { total, displayTotal, breakdown } = usePricing()
 const { errors, isValid } = useCompatibility()
+const { unavailable } = useInventory()
 
 const rows = computed(() => GROUP_IDS.map((group) => ({ group, label: GROUPS[group].label, option: getOption(group) })))
 const frameWeight = computed(() => getOption('frame')?.weightGrams)
@@ -99,12 +101,21 @@ onBeforeUnmount(() => clearTimeout(copyTimer))
             {{ row.option ? (row.option.price === 0 ? 'Included' : formatPrice(row.option.price)) : '—' }}
           </dd>
         </div>
+        <div v-if="coverPiece" class="grid grid-cols-[5.5rem_1fr_auto] items-start gap-3 px-4 py-4 sm:grid-cols-[8rem_1fr_auto] sm:gap-4 sm:px-5">
+          <dt class="pt-0.5 text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-graphite-400">Unique cover</dt>
+          <dd class="min-w-0">
+            <p class="font-medium">{{ coverPiece.name }}</p>
+            <p class="mt-0.5 text-sm text-graphite">One of a kind · {{ coverPiece.sold ? 'sold' : 'available' }}</p>
+            <button type="button" class="mt-1.5 text-xs font-medium text-forge-600 underline-offset-4 hover:underline" @click="goToGroup('saddle')">Change</button>
+          </dd>
+          <dd class="tabular text-sm">{{ formatPrice(coverPiece.price) }}</dd>
+        </div>
       </dl>
     </div>
 
     <div class="order-first flex flex-col gap-4 rounded-2xl bg-ink p-6 text-bone">
       <p class="text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-graphite-300">Build total</p>
-      <PriceDisplay :value="total" size="lg" />
+      <PriceDisplay :value="displayTotal" size="lg" />
       <p v-if="frameWeight" class="text-sm text-graphite-300">Frameset {{ frameWeight.toLocaleString('en-US') }} g</p>
 
       <ul class="space-y-1.5 text-sm">
@@ -115,6 +126,10 @@ onBeforeUnmount(() => clearTimeout(copyTimer))
         <li class="flex items-center gap-2" :class="isValid ? 'text-bone' : 'text-forge'">
           <span class="h-1.5 w-1.5 rounded-full" :class="isValid ? 'bg-bone' : 'bg-forge'" aria-hidden="true" />
           {{ isValid ? 'Compatible build' : `${errors.length} compatibility issue${errors.length > 1 ? 's' : ''}` }}
+        </li>
+        <li class="flex items-center gap-2" :class="unavailable.length ? 'text-forge' : 'text-bone'">
+          <span class="h-1.5 w-1.5 rounded-full" :class="unavailable.length ? 'bg-forge' : 'bg-bone'" aria-hidden="true" />
+          {{ unavailable.length ? `Out of stock: ${unavailable.map((u) => u.label).join(', ')}` : 'All parts in stock' }}
         </li>
       </ul>
 

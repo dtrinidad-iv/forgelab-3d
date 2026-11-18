@@ -30,8 +30,10 @@ npm run inspect:glb -- public/models/bicycle/road-bike.glb
   auto-matched bottom bracket) with card warnings and one-click fixes
 - JSON export of the configuration (`forgelab.configuration/v1`): selections, price breakdown,
   compatibility results
-- Add to cart through a `CommerceProvider` (mock store today, Shopify-ready): the server
-  re-validates and re-prices the build; the browser never sends prices
+- Add to cart through a `CommerceProvider`: the server re-validates and re-prices the build; the
+  browser never sends prices. Mock store by default; with `NUXT_PUBLIC_COMMERCE_PROVIDER=shopify`
+  every line is priced by a real Shopify store (Storefront API) and checkout is Shopify-hosted
+  (`npm run shopify:csv` generates the product import)
 - Meshopt-compressed 3D assets (8.5 MB → 2.1 MB), parallel loading of saved parts
 - Configuration saved in a cookie — survives reloads, rendered server-side
 - Reset to defaults
@@ -48,6 +50,15 @@ npm run inspect:glb -- public/models/bicycle/road-bike.glb
   handlebar, stem, saddle, paint and bar tape — each option states what its 3D change is
 - Original procedural road-bike model (generated in code, see `docs/asset-requirements.md`) with
   named components, mount anchors and an asset-mapping layer that reports missing parts
+- **Ride animation**: an authored glTF animation clip in the GLB (cranks turn, wheels spin),
+  played with `AnimationMixer`; keeps working through part swaps and the exploded view
+- **Store features**: currency switcher (USD / CAD / EUR / GBP / JPY, fixed demo rates, priced by
+  the server), stock per component (frame stock per size, low-stock and sold-out states), region
+  shipping rules enforced at checkout, printable packing slip with bill of materials
+- **One-of-a-kind pieces**: `/admin` (password-protected) uploads a photo of a unique saddle cover;
+  it becomes a selectable option, is mapped onto the 3D saddle, and is sold as an inventory-of-one
+  line (sold pieces can't be bought)
+- **Case study page** at `/how-its-built` for reviewers
 
 ## Documentation
 
@@ -55,7 +66,7 @@ npm run inspect:glb -- public/models/bicycle/road-bike.glb
 |---|---|
 | [architecture](docs/architecture.md) | Layers, data flow, future backend |
 | [configurator-guide](docs/configurator-guide.md) | Using/extending the configurator + 5-minute demo script |
-| [shopify-integration](docs/shopify-integration.md) | Commerce architecture and the Shopify plan |
+| [shopify-integration](docs/shopify-integration.md) | Shopify setup, Storefront API provider, known limits |
 | [asset-requirements](docs/asset-requirements.md) | 3D asset contract, anchors, materials |
 | [blender-workflow](docs/blender-workflow.md) | Preparing/replacing models in Blender |
 | [performance](docs/performance.md) | Compression evaluation and loading strategy |

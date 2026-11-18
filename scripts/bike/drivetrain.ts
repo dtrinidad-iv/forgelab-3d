@@ -5,7 +5,7 @@
  * catalog (2×12 / 2×12 / 2×13). Their finishes are ForgeLab design choices — they deliberately do
  * not imitate any real manufacturer's look.
  */
-import { ExtrudeGeometry, Group, type Material, Path, Shape, Vector3 } from 'three'
+import { ExtrudeGeometry, Group, type Material, type Mesh, Path, Shape, Vector3 } from 'three'
 import { GEO } from './frame'
 import { arc, between, deg, part, profileTube, tubeAlong, v } from './geometry'
 import { MATERIALS } from './materials'
@@ -74,11 +74,15 @@ export function buildCrankset(spec: GroupsetSpec): Group {
       profileTube(end.clone().add(v(-0.04, 0, 0.105 * side)), end.clone().add(v(0.045, 0, 0.105 * side)), 0.06, 0.016, { radialSegments: 8 }), // body
     ]
   })
-  return part('crankset', [
+  const crankset = part('crankset', [
     [spec.finish, [...rings, ...spider]],
     [spec.crankArms, arms],
     [MATERIALS.alloyDark, pedals],
   ])
+  // Pivot on the bottom bracket so the "ride" animation can rotate the crankset in place.
+  for (const child of crankset.children) (child as Mesh).geometry.translate(-bb.x, -bb.y, 0)
+  crankset.position.set(bb.x, bb.y, 0)
+  return crankset
 }
 
 /** Cogs span the same 38.5 mm of freehub whatever their count (13 cogs sit closer together). */

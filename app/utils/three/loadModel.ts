@@ -42,6 +42,7 @@ export async function loadModel(
       child.receiveShadow = true
     }
   })
+  gltf.scene.animations = gltf.animations // authored clips (e.g. "ride") travel with the scene
   return gltf.scene
 }
 

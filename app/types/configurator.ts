@@ -88,4 +88,6 @@ export interface Configuration {
   selections: Selections
   /** Only meaningful when the selected paint is the custom option. */
   customPaint: PaintSpec
+  /** Id of a one-of-a-kind saddle cover (uploaded by the studio), or null for the standard cover. */
+  uniqueCover: string | null
 }

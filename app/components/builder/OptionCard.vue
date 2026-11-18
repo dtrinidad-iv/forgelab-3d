@@ -1,14 +1,19 @@
 <script setup lang="ts">
 import type { CatalogOption } from '~/types/configurator'
-import { formatPrice } from '~/utils/pricing'
 
+const { format: formatPrice } = useCurrency()
 const props = defineProps<{
   option: CatalogOption
   selected: boolean
   compact?: boolean
   /** Set when choosing this option would create a compatibility error. */
   conflict?: string | null
+  /** Units in stock; null = not tracked. 0 = sold out (card disabled unless already selected). */
+  stock?: number | null
+  lowStock?: boolean
 }>()
+
+const soldOut = computed(() => props.stock === 0)
 
 defineEmits<{ select: [] }>()
 
@@ -20,12 +25,16 @@ const priceLabel = computed(() => (props.option.price === 0 ? 'Included' : forma
     type="button"
     role="radio"
     :aria-checked="selected"
+    :aria-disabled="soldOut && !selected"
+    :disabled="soldOut && !selected"
     class="group relative flex w-full flex-col rounded-2xl border bg-white text-left transition-all duration-300 ease-premium focus:outline-none focus-visible:ring-2 focus-visible:ring-forge focus-visible:ring-offset-2 focus-visible:ring-offset-bone"
     :class="[
       compact ? 'p-4' : 'p-5',
       selected
         ? 'border-ink shadow-[0_0_0_1px_theme(colors.ink.DEFAULT),0_12px_32px_-16px_rgba(14,15,17,0.35)]'
-        : 'border-bone-300 hover:-translate-y-0.5 hover:border-graphite-300 hover:shadow-[0_12px_32px_-20px_rgba(14,15,17,0.35)]',
+        : soldOut
+          ? 'cursor-not-allowed border-bone-300 opacity-55'
+          : 'border-bone-300 hover:-translate-y-0.5 hover:border-graphite-300 hover:shadow-[0_12px_32px_-20px_rgba(14,15,17,0.35)]',
     ]"
     @click="$emit('select')"
   >
@@ -48,6 +57,11 @@ const priceLabel = computed(() => (props.option.price === 0 ? 'Included' : forma
         </svg>
       </span>
     </div>
+
+    <p v-if="soldOut" class="mt-3 text-[0.75rem] font-medium leading-snug" :class="selected ? 'text-forge-600' : 'text-graphite'">
+      {{ selected ? 'Out of stock — please choose another option' : 'Out of stock' }}
+    </p>
+    <p v-else-if="lowStock" class="mt-3 text-[0.75rem] font-medium leading-snug text-forge-600">Only {{ stock }} left</p>
 
     <p v-if="conflict" class="mt-3 flex items-start gap-1.5 text-[0.75rem] font-medium leading-snug text-forge-600">
       <span class="mt-[0.3rem] h-1.5 w-1.5 shrink-0 rounded-full bg-forge" aria-hidden="true" />{{ conflict }}

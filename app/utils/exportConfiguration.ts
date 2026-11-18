@@ -18,6 +18,8 @@ export interface ConfigurationExport {
   missing: GroupId[]
   selections: Record<GroupId, { optionId: string; name: string; price: number } | null>
   paint: (PaintSpec & { custom: boolean }) | null
+  /** One-of-a-kind saddle cover id (priced by the commerce server from the studio's records). */
+  uniqueCover: string | null
   pricing: {
     currency: string
     total: number
@@ -50,10 +52,11 @@ export function buildConfigurationExport(config: Configuration, opts: { model: s
     missing: price.missing,
     selections,
     paint: paint ? { ...paint, custom: Boolean(paintOption?.paint?.custom) } : null,
+    uniqueCover: config.uniqueCover ?? null,
     pricing: {
       currency: price.currency,
       total: price.total,
-      lines: price.lines.map((l) => ({ ...l, label: GROUPS[l.group].label })),
+      lines: price.lines.filter((l) => l.group !== 'uniqueCover').map((l) => ({ ...l, group: l.group as GroupId, label: GROUPS[l.group as GroupId].label })),
       notice: 'Display pricing only. Prices must be re-validated by the commerce backend before checkout.',
     },
     compatibility: { valid, issues },

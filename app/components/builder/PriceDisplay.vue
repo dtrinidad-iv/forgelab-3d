@@ -1,14 +1,17 @@
 <script setup lang="ts">
-import { formatPrice } from '~/utils/pricing'
+import { formatMoney } from '~/utils/money'
 
+/** `value` is already in the display currency (see usePricing().displayTotal); tweened when it changes. */
 const props = withDefaults(defineProps<{ value: number; size?: 'sm' | 'lg' }>(), { size: 'sm' })
+const { currency } = useCurrency()
 
 // Smoothly tween the displayed number toward the target value.
-const displayed = ref(props.value)
+const target = computed(() => props.value)
+const displayed = ref(target.value)
 let raf = 0
 
 watch(
-  () => props.value,
+  target,
   (to) => {
     if (!import.meta.client) {
       displayed.value = to
@@ -37,6 +40,6 @@ onBeforeUnmount(() => cancelAnimationFrame(raf))
     :class="size === 'lg' ? 'text-3xl md:text-4xl' : 'text-lg'"
     aria-live="polite"
   >
-    {{ formatPrice(displayed) }}
+    {{ formatMoney(displayed, currency) }}
   </span>
 </template>
