@@ -55,6 +55,20 @@ const currencyMatches = computed(() => !cart.value || cart.value.cost.total.curr
 const priceMatches = computed(() => !cart.value || (currencyMatches.value && cart.value.cost.total.amount === clientTotal.value))
 const quotedAt = computed(() => (quote.value ? new Date(quote.value.quotedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : ''))
 
+// Test-store hint: a Shopify dev store keeps checkout behind a storefront password.
+const runtime = useRuntimeConfig()
+const storePassword = computed(() => (provider.id === 'shopify' ? String(runtime.public.shopifyStorePassword ?? '') : ''))
+const copied = ref(false)
+async function copyPassword() {
+  try {
+    await navigator.clipboard.writeText(storePassword.value)
+    copied.value = true
+    setTimeout(() => (copied.value = false), 1600)
+  } catch {
+    /* clipboard blocked — the password is visible anyway */
+  }
+}
+
 function goToCheckout() {
   if (!cart.value) return
   if (provider.checkout.isDemo) showCheckout.value = true
@@ -187,6 +201,16 @@ function goToCheckout() {
                 <template v-if="!currencyMatches">The store charges this destination in {{ cart.cost.total.currencyCode }} — the store's price applies.</template>
                 <template v-else>The server price differs from the price shown in the configurator — the server price applies.</template>
               </p>
+
+              <div v-if="storePassword" class="mt-3 rounded-xl border border-bone-300 bg-white px-3 py-2.5 text-xs leading-relaxed text-graphite">
+                <p>
+                  <span class="font-semibold text-ink">Test store — no real payment is taken.</span>
+                  Shopify will ask for the store password:
+                  <code class="rounded bg-bone-200 px-1.5 py-0.5 font-mono text-ink">{{ storePassword }}</code>
+                  <button type="button" class="ml-1 font-medium text-ink underline underline-offset-2" @click="copyPassword">{{ copied ? 'Copied' : 'Copy' }}</button>
+                </p>
+                <p class="mt-1">At checkout, pay with the test card Shopify shows on the payment step.</p>
+              </div>
 
               <button type="button" class="mt-4 h-12 w-full rounded-full bg-ink text-sm font-medium text-bone transition-colors hover:bg-ink-700" @click="goToCheckout">
                 Continue to checkout

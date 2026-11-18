@@ -48,6 +48,8 @@ export default defineNuxtConfig({
       /** Commit the deployment was built from (Netlify sets COMMIT_REF) — shown in the page footer. */
       buildRef: (process.env.COMMIT_REF ?? '').slice(0, 7) || 'local',
       shopifyStoreDomain: '',
+      /** Dev-store storefront password, shown in the cart as a test-store hint (NUXT_PUBLIC_SHOPIFY_STORE_PASSWORD). Leave empty for a real store. */
+      shopifyStorePassword: '',
     },
   },
 

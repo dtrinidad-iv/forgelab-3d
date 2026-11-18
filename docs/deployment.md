@@ -12,6 +12,10 @@ The app uses server-side rendering (saved builds render from the cookie) **and**
    Node version comes from `.nvmrc` (22).
 4. Environment variables: none required for the mock store.
    (`NUXT_PUBLIC_COMMERCE_PROVIDER=mock` is the default.)
+   - Shopify mode: `NUXT_PUBLIC_COMMERCE_PROVIDER=shopify`, `NUXT_PUBLIC_SHOPIFY_STORE_DOMAIN`,
+     `NUXT_SHOPIFY_STOREFRONT_PRIVATE_TOKEN` (secret). For a development store also set
+     `NUXT_PUBLIC_SHOPIFY_STORE_PASSWORD` — the cart then shows a "test store" note with the storefront
+     password (it is public on purpose; leave it unset for a real store).
    - `NUXT_ADMIN_PASSWORD` — enables `/admin` uploads of one-of-a-kind pieces. Without it the admin API
      answers 503 and the configurator simply shows no unique pieces. Use a long random value.
    - Uploaded pieces are stored in **Netlify Blobs** (store `forgelab-pieces`, picked automatically when
