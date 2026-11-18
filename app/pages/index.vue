@@ -1,14 +1,17 @@
 <script setup lang="ts">
 import { FORGELAB_ROAD_BIKE, visualOptionFor } from '~/config/assetMap'
 import { GROUP_IDS } from '~/config/catalog'
+import { arModelPath } from '~/utils/three/ar'
 import type { VisualTarget } from '~/utils/three/configuratorScene'
 
-const { getOption, paint, selections } = useConfigurator()
+const { getOption, paint, selections, configuration } = useConfigurator()
 const { set: setVisualStatus } = useVisualStatus()
 const { steps, stepIndex, currentStep } = useConfiguratorSteps()
 const { total } = usePricing()
 const buildRef = useRuntimeConfig().public.buildRef as string
 useHead({ meta: [{ name: 'forgelab-build', content: buildRef }] })
+/** Server-assembled GLB of the exact build, for Android AR (Scene Viewer). */
+const arPath = computed(() => arModelPath(configuration.value, buildRef))
 
 const frameName = computed(() => getOption('frame')?.name ?? 'Your ForgeLab')
 const paintLabel = computed(() => {
@@ -77,7 +80,7 @@ useSeoMeta({
         aria-label="3D bicycle preview"
       >
         <ClientOnly>
-          <ProductViewer class="absolute inset-0" :target="visualTarget" @visual-status="setVisualStatus" />
+          <ProductViewer class="absolute inset-0" :target="visualTarget" :ar-model-path="arPath" @visual-status="setVisualStatus" />
           <template #fallback>
             <div class="absolute inset-0 grid place-items-center">
               <span class="h-8 w-8 animate-spin rounded-full border-2 border-bone-300 border-t-ink" />

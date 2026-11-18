@@ -44,7 +44,9 @@ app/
   types/                     Domain types
   utils/                     Pure logic (no Vue): pricing, configuration, compatibility, exportConfiguration (forgelab.configuration/v1)
   utils/three/               Scene, loading, inspectModel, assetMapping, configuratorScene (paint + part swaps),
-                             explodedView, lighting (presets), forgedPattern (procedural shader), ar (USDZ/WebXR), dispose, placeholder
+                             explodedView, lighting (presets), forgedPattern (procedural shader), ar (USDZ + Scene Viewer intent),
+                             assembleConfiguration + exportGlb (server-side model for Android AR), dispose, placeholder
+server/api/ar/model.glb.get.ts  Assembles the exact configured bike as a plain GLB (Android Scene Viewer)
 tests/                       Vitest unit tests (Node)
 scripts/bike/                Procedural bike generator (Node, tsx) — source of all GLBs
 scripts/inspect-glb.ts       CLI inspector

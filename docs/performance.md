@@ -33,7 +33,9 @@ handlebars ~130 KB; saddles 110–180 KB; stems ~10 KB). Compression runs inside
 
 - iOS: USDZ is exported in the browser from the live scene ~1 s after each change (≈6.7 MB,
   generated on-device — nothing is downloaded), so the AR tap opens Quick Look instantly.
-- Android: WebXR reuses the already-loaded scene — no extra download.
+- Android: Scene Viewer needs a public GLB URL, so `/api/ar/model.glb?c=…` assembles the exact build
+  server-side with the same swap engine (dequantized plain glTF, ~2.1 MB, ~0.1 s warm), cacheable per
+  configuration + build. (WebXR was tried first but proved unreliable on Samsung devices.)
 - Procedural shader finishes are not representable in USDZ materials; iOS AR shows their base colour.
 
 ## Rendering

@@ -17,7 +17,7 @@ Seven steps: **Frame → Size → Paint → Groupset → Wheels → Cockpit → 
 - Review: compatibility status, full spec sheet, **Download JSON / Copy**, **Add to cart** (demo store).
 - Viewer: drag to rotate, scroll/pinch or −/+ to zoom, ↺ to reset the camera; **Explode** for the
   exploded assembly view; **Studio / Daylight / Dramatic** lighting presets; **View in AR** on
-  supported phones (iPhone AR Quick Look, Android WebXR) showing the exact build at real size.
+  phones (iPhone AR Quick Look, Android Google Scene Viewer) showing the exact build at real size.
 
 ## Changing the catalog
 

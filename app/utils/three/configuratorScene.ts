@@ -112,16 +112,18 @@ export class ConfiguratorScene {
     return this.shown.get(group)
   }
 
-  /** Applies a whole target. Groups are processed in parallel; returns a status per group. */
+  /**
+   * Applies a whole target and returns a status per group. Independent groups run in parallel;
+   * derived groups (size → frame) run AFTER, because they report on what their source mounted.
+   */
   async apply(target: VisualTarget, opts: { animate?: boolean } = {}): Promise<Partial<Record<GroupId, VisualStatus>>> {
-    const groups = new Set<GroupId>([...(Object.keys(target.variants) as GroupId[]), ...(target.paint ? (['paint'] as GroupId[]) : [])])
-    const entries = await Promise.all(
-      [...groups].map(async (group) => {
-        const status = group === 'paint' ? this.applyPaint(target.paint, opts.animate ?? true) : await this.setVariant(group, target.variants[group] ?? null)
-        return [group, status] as const
-      }),
-    )
-    return Object.fromEntries(entries)
+    const groups = [...new Set<GroupId>([...(Object.keys(target.variants) as GroupId[]), ...(target.paint ? (['paint'] as GroupId[]) : [])])]
+    const isDerived = (g: GroupId) => this.map.visuals[g]?.kind === 'derived'
+    const run = async (group: GroupId) =>
+      [group, group === 'paint' ? this.applyPaint(target.paint, opts.animate ?? true) : await this.setVariant(group, target.variants[group] ?? null)] as const
+    const first = await Promise.all(groups.filter((g) => !isDerived(g)).map(run))
+    const second = await Promise.all(groups.filter(isDerived).map(run))
+    return Object.fromEntries([...first, ...second])
   }
 
   applyPaint(paint: PaintSpec | undefined, animate = true): VisualStatus {

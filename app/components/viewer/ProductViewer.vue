@@ -9,7 +9,7 @@
  *
  * Three.js objects live in plain variables on purpose — Vue proxies break Three internals.
  */
-import { Group, Mesh, MeshBasicMaterial, type Object3D, RingGeometry, Vector3 } from 'three'
+import { type Object3D, Vector3 } from 'three'
 import { FORGELAB_ROAD_BIKE, type ModelAssetMap } from '~/config/assetMap'
 import { GROUPS } from '~/config/catalog'
 import type { GroupId } from '~/types/configurator'
@@ -17,7 +17,7 @@ import { ConfiguratorScene, MissingAssetError, type VisualStatus, type VisualTar
 import { type AssetMappingResult, resolveAssetMap } from '~/utils/three/assetMapping'
 import { createScene, type ViewerContext, WebGLUnavailableError } from '~/utils/three/createScene'
 import { disposeObject3D } from '~/utils/three/dispose'
-import { exportUsdz, openQuickLook, supportsQuickLook, supportsWebXRAR } from '~/utils/three/ar'
+import { AR_UNAVAILABLE_HASH, exportUsdz, isAndroid, openQuickLook, sceneViewerIntent, supportsQuickLook } from '~/utils/three/ar'
 import { ExplodedView } from '~/utils/three/explodedView'
 import { LIGHTING_PRESETS, type LightingPresetId, LightingRig } from '~/utils/three/lighting'
 import { formatReport, inspectModel } from '~/utils/three/inspectModel'
@@ -26,10 +26,20 @@ import { createPlaceholderBike } from '~/utils/three/placeholder'
 
 type ViewerStatus = 'loading' | 'ready' | 'placeholder' | 'error'
 
-const props = withDefaults(defineProps<{ assetMap?: ModelAssetMap; target?: VisualTarget; autoRotate?: boolean }>(), {
+const props = withDefaults(
+  defineProps<{
+    assetMap?: ModelAssetMap
+    target?: VisualTarget
+    autoRotate?: boolean
+    /** Path of a server-built GLB of the current build (Android Scene Viewer needs a public URL). */
+    arModelPath?: string
+  }>(),
+  {
   assetMap: () => FORGELAB_ROAD_BIKE,
   autoRotate: false,
-})
+  arModelPath: undefined,
+  },
+)
 
 const emit = defineEmits<{
   loaded: [payload: { placeholder: boolean; mapping: AssetMappingResult | null }]
@@ -47,11 +57,15 @@ const isExploded = ref(false)
 const lighting = ref<LightingPresetId>('studio')
 // ---- AR state ----
 const arQuickLook = ref(false) // iOS AR Quick Look available
-const arWebXR = ref(false) // Android/Chrome WebXR AR available
-const arActive = ref(false) // WebXR session running
+const arAndroid = ref(false) // Android → Google Scene Viewer
 const usdzReady = ref(false)
-const arOverlay = ref<HTMLDivElement | null>(null)
-const arPlaced = ref(false)
+const arError = ref('')
+let arErrorTimer: ReturnType<typeof setTimeout> | undefined
+function showArError(message: string) {
+  arError.value = message
+  clearTimeout(arErrorTimer)
+  arErrorTimer = setTimeout(() => (arError.value = ''), 8000)
+}
 const statuses = ref<Partial<Record<GroupId, VisualStatus>>>({})
 const updating = computed(() =>
   (Object.entries(statuses.value) as [GroupId, VisualStatus][])
@@ -71,11 +85,6 @@ let appliedTarget: VisualTarget | null = null
 let home: CameraView | null = null
 let usdz: Uint8Array | null = null
 let usdzTimer: ReturnType<typeof setTimeout> | undefined
-let xrSession: XRSession | null = null
-let hitTestSource: XRHitTestSource | null = null
-let arAnchor: Group | null = null
-let reticle: Mesh | null = null
-let homeRootPosition: Vector3 | null = null
 let resizeObserver: ResizeObserver | null = null
 let abort: AbortController | null = null
 let disposed = false
@@ -138,16 +147,13 @@ function zoom(factor: number) {
 }
 
 // ---- Render loop / sizing ----
-/** Driven by renderer.setAnimationLoop so the same loop also serves WebXR AR sessions. */
-function renderLoop(now: number, frame?: XRFrame) {
-  if (!ctx || disposed) return
-  if (!arActive.value && document.hidden) return
+function renderLoop(now: number) {
+  if (!ctx || disposed || document.hidden) return
   stepTween(now)
   configurator?.update(now)
   exploded?.update(now)
   rig?.update(now)
-  if (arActive.value) updateHitTest(frame)
-  else ctx.controls.update()
+  ctx.controls.update()
   ctx.renderer.render(ctx.scene, ctx.camera)
 }
 
@@ -164,6 +170,7 @@ function scheduleUsdz() {
       if (model === modelRoot) usdzReady.value = true
     } catch (err) {
       console.error('[ProductViewer] USDZ export failed:', err)
+      showArError("AR couldn't be prepared for this build.")
     }
   }, 900)
 }
@@ -171,101 +178,15 @@ function scheduleUsdz() {
 function openAR() {
   if (arQuickLook.value) {
     if (usdz && usdzReady.value) openQuickLook(usdz) // synchronous inside the tap (Safari requirement)
+    else showArError('AR is still being prepared — try again in a moment.')
     return
   }
-  if (arWebXR.value) void startWebXR()
-}
-
-// ---- AR: WebXR (Android Chrome + ARCore): place the live scene on the floor at 1:1 ----
-async function startWebXR() {
-  if (!ctx || !modelRoot || arActive.value) return
-  const xr = (navigator as Navigator & { xr?: XRSystem }).xr
-  if (!xr) return
-  try {
-    const session = await xr.requestSession('immersive-ar', {
-      requiredFeatures: ['hit-test'],
-      optionalFeatures: ['dom-overlay'],
-      domOverlay: arOverlay.value ? { root: arOverlay.value } : undefined,
-    } as XRSessionInit)
-    ctx.renderer.xr.enabled = true
-    ctx.renderer.xr.setReferenceSpaceType('local')
-    await ctx.renderer.xr.setSession(session)
-    xrSession = session
-    const viewerSpace = await session.requestReferenceSpace('viewer')
-    hitTestSource = (await session.requestHitTestSource?.({ space: viewerSpace })) ?? null
-
-    // Re-parent the bike under an anchor we can move onto the detected floor.
-    homeRootPosition = modelRoot.position.clone()
-    arAnchor = new Group()
-    arAnchor.add(modelRoot)
-    ctx.scene.add(arAnchor)
-    arAnchor.visible = false
-    ctx.ground.visible = false
-    reticle = new Mesh(new RingGeometry(0.12, 0.15, 48).rotateX(-Math.PI / 2), new MeshBasicMaterial({ color: 0xffffff }))
-    reticle.matrixAutoUpdate = false
-    reticle.visible = false
-    ctx.scene.add(reticle)
-    ctx.controls.enabled = false
-    arPlaced.value = false
-    arActive.value = true
-    session.addEventListener('select', placeOnReticle)
-    session.addEventListener('end', endWebXR)
-  } catch (err) {
-    console.error('[ProductViewer] Could not start AR:', err)
+  if (arAndroid.value) {
+    if (!props.arModelPath) return showArError('AR is not available for this model.')
+    const page = window.location.href.split('#')[0]!
+    const model = new URL(props.arModelPath, window.location.origin).toString()
+    window.location.href = sceneViewerIntent(model, page + AR_UNAVAILABLE_HASH, 'ForgeLab — your build')
   }
-}
-
-function updateHitTest(frame?: XRFrame) {
-  if (!ctx || !frame || !hitTestSource || !reticle) return
-  const space = ctx.renderer.xr.getReferenceSpace()
-  const hit = space ? frame.getHitTestResults(hitTestSource)[0] : undefined
-  const pose = hit && space ? hit.getPose(space) : undefined
-  reticle.visible = Boolean(pose)
-  if (pose) reticle.matrix.fromArray(pose.transform.matrix)
-}
-
-function placeOnReticle() {
-  if (!ctx || !arAnchor || !reticle?.visible || !homeRootPosition) return
-  const p = new Vector3().setFromMatrixPosition(reticle.matrix)
-  arAnchor.position.copy(p)
-  // Turn the bike side-on to the viewer (its length runs along X, the drive side faces +Z).
-  const cam = ctx.renderer.xr.getCamera().getWorldPosition(new Vector3())
-  arAnchor.rotation.set(0, Math.atan2(cam.x - p.x, cam.z - p.z), 0)
-  arAnchor.visible = true
-  arPlaced.value = true
-}
-
-function endWebXR() {
-  const session = xrSession
-  xrSession = null
-  hitTestSource?.cancel()
-  hitTestSource = null
-  session?.removeEventListener('select', placeOnReticle)
-  session?.removeEventListener('end', endWebXR)
-  if (ctx) {
-    if (reticle) {
-      ctx.scene.remove(reticle)
-      reticle.geometry.dispose()
-      ;(reticle.material as MeshBasicMaterial).dispose()
-    }
-    if (modelRoot && arAnchor) {
-      ctx.scene.add(modelRoot) // re-parent back
-      if (homeRootPosition) modelRoot.position.copy(homeRootPosition)
-      ctx.scene.remove(arAnchor)
-    }
-    ctx.ground.visible = true
-    ctx.renderer.xr.enabled = false
-    ctx.controls.enabled = true
-  }
-  reticle = null
-  arAnchor = null
-  arActive.value = false
-  arPlaced.value = false
-  resize()
-}
-
-function exitAR() {
-  void xrSession?.end()
 }
 
 function resize() {
@@ -461,7 +382,12 @@ onMounted(() => {
   ctx.controls.autoRotate = props.autoRotate
   rig = new LightingRig(ctx)
   arQuickLook.value = supportsQuickLook()
-  void supportsWebXRAR().then((ok) => (arWebXR.value = ok))
+  arAndroid.value = !arQuickLook.value && isAndroid()
+  // Coming back from an Android intent that couldn't open Scene Viewer.
+  if (window.location.hash === AR_UNAVAILABLE_HASH) {
+    history.replaceState(null, '', window.location.pathname + window.location.search)
+    showArError("AR couldn't open: Google's Scene Viewer isn't available on this device (it needs the Google app and ARCore).")
+  }
   // Manual interaction cancels any running camera animation.
   ctx.controls.addEventListener('start', () => (tween = null))
   resizeObserver = new ResizeObserver(resize)
@@ -489,7 +415,7 @@ onBeforeUnmount(() => {
   disposed = true
   abort?.abort()
   clearTimeout(usdzTimer)
-  if (xrSession) void xrSession.end().catch(() => {})
+  clearTimeout(arErrorTimer)
   ctx?.renderer.setAnimationLoop(null)
   resizeObserver?.disconnect()
   resizeObserver = null
@@ -562,15 +488,16 @@ defineExpose({
       </div>
     </div>
 
-    <!-- WebXR DOM overlay (shown by the browser over the camera feed during AR) -->
-    <div ref="arOverlay" class="pointer-events-none" :class="arActive ? 'fixed inset-0 z-[60]' : 'hidden'">
-      <div v-if="arActive" class="pointer-events-auto absolute inset-x-0 top-0 flex items-center justify-between gap-3 p-4">
-        <p class="rounded-full bg-ink/80 px-4 py-2 text-sm text-bone">
-          {{ arPlaced ? 'Tap again to move the bike' : 'Point at the floor, then tap to place your bike' }}
-        </p>
-        <button type="button" class="rounded-full bg-bone px-4 py-2 text-sm font-medium text-ink" @click="exitAR">Exit AR</button>
+    <!-- AR errors are always visible (never fail silently) -->
+    <Transition enter-active-class="transition duration-200" enter-from-class="opacity-0" leave-active-class="transition duration-300" leave-to-class="opacity-0">
+      <div
+        v-if="arError"
+        class="absolute inset-x-3 top-16 z-10 mx-auto max-w-md rounded-2xl bg-ink/90 px-4 py-3 text-sm text-bone shadow-lg sm:top-20"
+        role="alert"
+      >
+        {{ arError }}
       </div>
-    </div>
+    </Transition>
 
     <!-- Lighting presets -->
     <div
@@ -644,7 +571,7 @@ defineExpose({
         Drag to rotate · Scroll to zoom
       </p>
       <button
-        v-if="status === 'ready' && (arQuickLook || arWebXR)"
+        v-if="status === 'ready' && (arQuickLook || arAndroid)"
         type="button"
         class="flex h-10 items-center gap-2 rounded-full bg-forge px-4 text-sm font-medium text-white transition-colors duration-200 hover:bg-forge-600 disabled:opacity-60"
         :disabled="arQuickLook && !usdzReady"

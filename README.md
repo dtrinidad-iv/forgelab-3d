@@ -38,8 +38,8 @@ npm run inspect:glb -- public/models/bicycle/road-bike.glb
 - Interactive Three.js viewer: orbit, zoom, reset view, loading progress, error handling
 - **Exploded assembly view** (animated, works with part swaps), **lighting presets** (studio /
   daylight / dramatic)
-- **Mobile AR at 1:1**: iOS AR Quick Look with a USDZ exported in the browser from the current
-  build; Android WebXR placement with hit-testing (both show the exact configuration)
+- **Mobile AR at 1:1** of the exact configuration: iOS AR Quick Look with a USDZ exported in the
+  browser; Android Google Scene Viewer with a GLB assembled on the server (`/api/ar/model.glb`)
 - **Forged Pattern** finish: procedural, anti-aliased GPU shader — 0 KB of textures
 - Real-time frame paint (presets + custom colour, matte / gloss / metallic) without reloading the scene
 - Every step is shown in 3D: 4 framesets × 5 sizes (frame geometry, bar and saddle height),

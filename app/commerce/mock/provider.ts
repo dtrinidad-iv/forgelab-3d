@@ -7,7 +7,8 @@ interface FetchErrorLike {
 
 async function post<T>(url: string, body: unknown): Promise<T> {
   try {
-    return await $fetch<T>(url, { method: 'POST', body: body as Record<string, unknown> })
+    // Our own POST routes; typed by the caller (Nitro's route-based inference can't see generic T).
+    return (await $fetch(url, { method: 'POST', body: body as Record<string, unknown> })) as T
   } catch (err) {
     const e = err as FetchErrorLike
     throw new CommerceError(e.data?.statusMessage ?? e.data?.message ?? e.message ?? 'Commerce request failed.', e.data?.data?.code ?? 'network')

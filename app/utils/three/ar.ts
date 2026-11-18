@@ -1,16 +1,18 @@
 /**
- * Mobile AR at 1:1 scale, always showing the CURRENT configuration (no pre-baked files).
+ * Mobile AR at 1:1 scale, always showing the CURRENT configuration.
  *
- *  - iOS:     AR Quick Look. The live model is exported to USDZ in the browser at tap time
- *             (metres, Y-up, horizontal-plane anchoring) and opened via <a rel="ar">.
- *  - Android: WebXR `immersive-ar` (Chrome + ARCore) places the live Three.js scene on the floor
- *             with hit-testing. (Scene Viewer would need a publicly hosted GLB per configuration.)
+ *  - iOS:     AR Quick Look. The live model is exported to USDZ in the browser (metres, Y-up,
+ *             horizontal-plane anchoring) and opened via <a rel="ar">.
+ *  - Android: Google Scene Viewer (part of the Google app). It needs a public URL to a GLB, so the
+ *             server assembles the exact build on demand (/api/ar/model.glb?c=…). `resizable=false`
+ *             keeps it at real size.
  *
- * Limits: procedural shader finishes (Forged Pattern) are not part of USDZ materials, so iOS AR
+ * Limits: procedural shader finishes (Forged Pattern) are not part of USDZ/glTF materials, so AR
  * shows their base colour. Device behaviour must be verified on real phones.
  */
 import type { Object3D } from 'three'
 import { USDZExporter } from 'three/addons/exporters/USDZExporter.js'
+import type { Configuration } from '../../types/configurator'
 
 /** True on iOS/iPadOS Safari (and in-app browsers) that support AR Quick Look. */
 export function supportsQuickLook(): boolean {
@@ -19,15 +21,8 @@ export function supportsQuickLook(): boolean {
   return Boolean(a.relList?.supports?.('ar'))
 }
 
-/** True when the browser can start a WebXR AR session (e.g. Chrome on ARCore Android). */
-export async function supportsWebXRAR(): Promise<boolean> {
-  const xr = (typeof navigator !== 'undefined' ? (navigator as Navigator & { xr?: XRSystem }).xr : undefined)
-  if (!xr?.isSessionSupported) return false
-  try {
-    return await xr.isSessionSupported('immersive-ar')
-  } catch {
-    return false
-  }
+export function isAndroid(): boolean {
+  return typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent)
 }
 
 /** Exports an object (the configured bike) to a USDZ archive for AR Quick Look. */
@@ -51,4 +46,33 @@ export function openQuickLook(usdz: Uint8Array, fileName = 'forgelab-bike.usdz')
   a.click()
   a.remove()
   setTimeout(() => URL.revokeObjectURL(url), 60_000)
+}
+
+/** base64url (no padding) of the configuration, for the AR model route. */
+export function encodeConfiguration(config: Configuration): string {
+  const json = JSON.stringify({ selections: config.selections, customPaint: config.customPaint })
+  const bytes = new TextEncoder().encode(json)
+  let binary = ''
+  for (const b of bytes) binary += String.fromCharCode(b)
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+}
+
+/** Path of the server-assembled GLB for a configuration (versioned by build for caching). */
+export function arModelPath(config: Configuration, buildRef: string): string {
+  return `/api/ar/model.glb?c=${encodeConfiguration(config)}&v=${encodeURIComponent(buildRef)}`
+}
+
+export const AR_UNAVAILABLE_HASH = '#ar-unavailable'
+
+/**
+ * Android intent that opens Google Scene Viewer in AR at real size. If Scene Viewer isn't
+ * available, the browser comes back to `fallbackUrl` (we append AR_UNAVAILABLE_HASH to explain).
+ */
+export function sceneViewerIntent(absoluteModelUrl: string, fallbackUrl: string, title: string): string {
+  const params = new URLSearchParams({ file: absoluteModelUrl, mode: 'ar_preferred', resizable: 'false', title })
+  return (
+    `intent://arvr.google.com/scene-viewer/1.0?${params.toString()}` +
+    `#Intent;scheme=https;package=com.google.android.googlequicksearchbox;action=android.intent.action.VIEW;` +
+    `S.browser_fallback_url=${encodeURIComponent(fallbackUrl)};end;`
+  )
 }
