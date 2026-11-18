@@ -6,6 +6,8 @@ const { getOption, paint, selections } = useConfigurator()
 const { set: setVisualStatus } = useVisualStatus()
 const { steps, stepIndex, currentStep } = useConfiguratorSteps()
 const { total } = usePricing()
+const buildRef = useRuntimeConfig().public.buildRef as string
+useHead({ meta: [{ name: 'forgelab-build', content: buildRef }] })
 
 const frameName = computed(() => getOption('frame')?.name ?? 'Your ForgeLab')
 const paintLabel = computed(() => {
@@ -143,6 +145,7 @@ useSeoMeta({
             ForgeLab is a fictional brand built as a technology demonstration. Component names, specifications and
             prices are illustrative. Third-party brand names are used for demonstration only and imply no affiliation
             or product compatibility.
+            <span class="tabular ml-1 whitespace-nowrap">Build {{ buildRef }}</span>
           </p>
         </section>
 

@@ -34,6 +34,8 @@ export default defineNuxtConfig({
     public: {
       /** 'mock' (default) or 'shopify' — NUXT_PUBLIC_COMMERCE_PROVIDER */
       commerceProvider: 'mock',
+      /** Commit the deployment was built from (Netlify sets COMMIT_REF) — shown in the page footer. */
+      buildRef: (process.env.COMMIT_REF ?? '').slice(0, 7) || 'local',
       shopifyStoreDomain: '',
     },
   },

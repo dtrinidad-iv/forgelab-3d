@@ -23,10 +23,14 @@ export async function loadModel(
   signal?: AbortSignal,
 ): Promise<Group> {
   const res = await fetch(url, { signal })
-  // Nuxt's dev server may answer missing files with an HTML/JSON 404 page.
   const type = res.headers.get('content-type') ?? ''
-  if (res.status === 404 || type.includes('text/html')) throw new ModelNotFoundError(url)
-  if (!res.ok) throw new Error(`Failed to fetch model (${res.status} ${res.statusText})`)
+  // Missing = a real 404, or an HTML fallback page served with 200 (SPA-style hosting).
+  if (res.status === 404 || (res.ok && type.includes('text/html'))) throw new ModelNotFoundError(url)
+  // A login wall (e.g. Netlify visitor access) is NOT a missing file — say what actually happened.
+  if (res.status === 401 || res.status === 403) {
+    throw new Error(`Access to ${url} was denied (${res.status}). The hosting site requires a login — check the host's visitor access settings.`)
+  }
+  if (!res.ok) throw new Error(`Failed to fetch ${url} (${res.status} ${res.statusText})`)
 
   const buffer = await readWithProgress(res, onProgress)
   const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder)
