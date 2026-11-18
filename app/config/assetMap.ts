@@ -59,6 +59,8 @@ export interface ModelAssetMap {
   bakedVariants: Partial<Record<GroupId, string>>
   /** Why a group is not visualised (shown in the UI). */
   notes: Partial<Record<GroupId, string>>
+  /** Exploded-view offsets per node (metres, parent space). Nested parts add up. */
+  explode: Record<string, [number, number, number]>
 }
 
 const C = '/models/bicycle/components'
@@ -129,7 +131,22 @@ export const FORGELAB_ROAD_BIKE: ModelAssetMap = {
     },
   },
   bakedVariants: { frame: 'aero-carbon@m', groupset: 'shimano-demo', wheels: 'carbon-climbing', handlebar: 'carbon-ergo', stem: 'alloy-stem', saddle: 'saddle-race', barTape: 'tape-black' },
-  notes: {
+  notes: {},
+  explode: {
+    wheel_front: [0.34, -0.02, 0],
+    wheel_rear: [-0.34, -0.02, 0],
+    fork: [0.16, -0.06, 0],
+    seatpost: [-0.04, 0.14, 0],
+    saddle: [-0.07, 0.3, 0],
+    stem: [0.05, 0.16, 0],
+    handlebar: [0.12, 0.08, 0],
+    crankset: [0.02, -0.06, 0.24],
+    chain: [0, 0, 0.16],
+    cassette: [-0.04, 0, 0.2],
+    derailleur_front: [0, 0.03, 0.2],
+    derailleur_rear: [-0.06, -0.08, 0.26],
+    brake_front: [0.04, 0.02, -0.18],
+    brake_rear: [-0.04, 0.02, -0.18],
   },
 }
 

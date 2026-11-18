@@ -29,6 +29,13 @@ handlebars ~130 KB; saddles 110–180 KB; stems ~10 KB). Compression runs inside
 - Variant GLBs are loaded once; detached parts are kept for instant re-selection.
 - The saved configuration is applied before the model is revealed (no flash of default parts).
 
+## AR
+
+- iOS: USDZ is exported in the browser from the live scene ~1 s after each change (≈6.7 MB,
+  generated on-device — nothing is downloaded), so the AR tap opens Quick Look instantly.
+- Android: WebXR reuses the already-loaded scene — no extra download.
+- Procedural shader finishes are not representable in USDZ materials; iOS AR shows their base colour.
+
 ## Rendering
 
 - Pixel ratio capped at 2; render loop pauses when the tab is hidden.

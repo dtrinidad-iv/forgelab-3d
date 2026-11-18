@@ -11,6 +11,9 @@ const background = computed(() => {
   if (props.rainbow) {
     return 'conic-gradient(from 200deg, #E4572E, #F2C14E, #5FAD56, #4D9DE0, #7768AE, #E15554, #E4572E)'
   }
+  if (props.finish === 'forged') {
+    return 'repeating-radial-gradient(ellipse at 20% 30%, #2a2c30 0 2px, #c4c8ce 3px 5px, #6d7178 6px 7px)'
+  }
   if (props.finish === 'matte') return props.color
   if (props.finish === 'metallic') {
     return `linear-gradient(135deg, rgba(255,255,255,.55) 0%, rgba(255,255,255,0) 35%, rgba(0,0,0,.18) 70%, rgba(255,255,255,.25) 100%), ${props.color}`

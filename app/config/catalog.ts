@@ -57,6 +57,7 @@ export const CATALOG: Record<GroupId, CatalogOption[]> = {
     { id: 'gloss-black', name: 'Gloss Black', tagline: 'Deep piano-gloss', specs: ['Gloss clear coat'], price: 0, paint: { color: '#0B0C0E', finish: 'gloss' } },
     { id: 'metallic-silver', name: 'Metallic Silver', tagline: 'Fine flake, liquid-metal look', specs: ['Metallic flake', 'Gloss clear coat'], price: 150, paint: { color: '#B9BDC2', finish: 'metallic' } },
     { id: 'racing-red', name: 'Racing Red', tagline: 'Saturated race red', specs: ['Gloss clear coat'], price: 150, paint: { color: '#C8102E', finish: 'gloss' } },
+    { id: 'forged-pattern', name: 'Forged Pattern', tagline: 'Folded-steel pattern, rendered live', specs: ['Procedural GPU shader · 0 KB textures', 'Satin clear coat'], price: 600, badge: 'Showcase', paint: { color: '#8E9298', finish: 'forged' } },
     { id: 'custom', name: 'Custom Colour', tagline: 'Any colour, your choice of finish', specs: ['Colour-matched in studio'], price: 300, badge: 'Bespoke', paint: { color: '#E4572E', finish: 'gloss', custom: true } },
   ],
   groupset: [

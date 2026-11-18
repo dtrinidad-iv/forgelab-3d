@@ -3,6 +3,7 @@ import type { CatalogOption, Configuration, GroupId, PaintFinish, PaintSpec, Sel
 
 /** Pure helpers for configuration data. No Vue. */
 
+/** Finishes a customer may pick for a CUSTOM colour (forged is a preset-only shader finish). */
 const FINISHES: PaintFinish[] = ['matte', 'gloss', 'metallic']
 const HEX = /^#[0-9a-f]{6}$/i
 

@@ -33,7 +33,8 @@ export interface GroupDefinition {
   required: boolean
 }
 
-export type PaintFinish = 'matte' | 'gloss' | 'metallic'
+/** `forged` = procedural folded-steel pattern (preset only, not for custom colours). */
+export type PaintFinish = 'matte' | 'gloss' | 'metallic' | 'forged'
 
 /** PBR parameters for a paint. Applied to the frame material once the real model exists. */
 export interface PaintSpec {

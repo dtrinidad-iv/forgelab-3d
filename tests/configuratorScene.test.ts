@@ -48,6 +48,18 @@ describe('ConfiguratorScene (real generated GLBs)', () => {
     expect(frameMeshBefore.geometry).toBe(geometry) // no reload / no rebuild
   })
 
+  it('forged finish blends the procedural pattern in and out without touching geometry', () => {
+    const mesh = root.getObjectByName('frame_main')!.children[0] as Mesh
+    const geometry = mesh.geometry
+    expect(scene.applyPaint({ color: '#8E9298', finish: 'forged' }, false).message).toMatch(/procedural shader/)
+    expect(scene.forgedUniforms.uForged.value).toBe(1)
+    expect(typeof scene.paintMaterial.onBeforeCompile).toBe('function')
+    scene.applyPaint({ color: '#C8102E', finish: 'gloss' }, true)
+    scene.update(performance.now() + 10_000)
+    expect(scene.forgedUniforms.uForged.value).toBe(0)
+    expect(mesh.geometry).toBe(geometry)
+  })
+
   it('animates paint changes over time', () => {
     scene.applyPaint({ color: '#FFFFFF', finish: 'matte' }, true)
     const start = performance.now()

@@ -85,9 +85,10 @@ useSeoMeta({
           </template>
         </ClientOnly>
 
-        <div class="pointer-events-none absolute bottom-4 left-4 sm:bottom-6 sm:left-6 lg:bottom-8 lg:left-10">
+        <!-- Sits ABOVE the viewer's control row (bottom), so they never collide at any width. -->
+        <div class="pointer-events-none absolute bottom-[4.25rem] left-4 sm:bottom-[4.75rem] sm:left-6 lg:bottom-24 lg:left-10">
           <p class="hidden text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-graphite-400 sm:block">ForgeLab</p>
-          <p class="font-display font-semibold tracking-tightest transition-all duration-300" :class="compact ? 'text-lg sm:text-2xl lg:text-5xl' : 'text-xl sm:text-4xl lg:text-5xl'">
+          <p class="font-display font-semibold tracking-tightest transition-all duration-300" :class="compact ? 'text-lg sm:text-2xl lg:text-5xl' : 'text-xl sm:text-3xl lg:text-5xl'">
             {{ frameName }}
           </p>
           <p class="items-center gap-2 text-sm text-graphite" :class="compact ? 'hidden lg:flex' : 'flex'">

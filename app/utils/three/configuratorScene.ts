@@ -16,6 +16,8 @@ import { Color, type Material, type Mesh, MeshPhysicalMaterial, MeshStandardMate
 import type { ComponentId, GroupVisual, ModelAssetMap } from '../../config/assetMap'
 import type { GroupId, PaintFinish, PaintSpec } from '../../types/configurator'
 import { type AssetMappingResult, resolveAssetMap } from './assetMapping'
+import { basePositionOf } from './explodedView'
+import { createForgedUniforms, installForgedPattern } from './forgedPattern'
 
 export type VisualState = 'applied' | 'loading' | 'unsupported' | 'missing-asset' | 'error'
 
@@ -43,10 +45,12 @@ export class MissingAssetError extends Error {
 }
 
 /** Approximate PBR presets — no flake/weave textures, so finishes are visual approximations. */
-export const FINISH_PRESETS: Record<PaintFinish, { roughness: number; metalness: number; clearcoat: number; clearcoatRoughness: number }> = {
-  matte: { roughness: 0.66, metalness: 0.04, clearcoat: 0, clearcoatRoughness: 0.6 },
-  gloss: { roughness: 0.3, metalness: 0.06, clearcoat: 1, clearcoatRoughness: 0.04 },
-  metallic: { roughness: 0.34, metalness: 0.78, clearcoat: 1, clearcoatRoughness: 0.08 },
+export const FINISH_PRESETS: Record<PaintFinish, { roughness: number; metalness: number; clearcoat: number; clearcoatRoughness: number; forged: number }> = {
+  matte: { roughness: 0.66, metalness: 0.04, clearcoat: 0, clearcoatRoughness: 0.6, forged: 0 },
+  gloss: { roughness: 0.3, metalness: 0.06, clearcoat: 1, clearcoatRoughness: 0.04, forged: 0 },
+  metallic: { roughness: 0.34, metalness: 0.78, clearcoat: 1, clearcoatRoughness: 0.08, forged: 0 },
+  /** Procedural pattern drives colour/roughness/metalness in the shader (forgedPattern.ts). */
+  forged: { roughness: 0.32, metalness: 0.8, clearcoat: 0.35, clearcoatRoughness: 0.25, forged: 1 },
 }
 
 interface PaintParams {
@@ -55,6 +59,8 @@ interface PaintParams {
   metalness: number
   clearcoat: number
   clearcoatRoughness: number
+  /** 0..1 blend of the procedural forged pattern. */
+  forged: number
 }
 
 const slotKey = (slot: string, variant: string) => `${slot}|${variant}`
@@ -68,6 +74,7 @@ function meshesOf(root: Object3D): Mesh[] {
 export class ConfiguratorScene {
   readonly paintMaterial = new MeshPhysicalMaterial({ name: 'forgelab_paint' })
   readonly tapeMaterial = new MeshStandardMaterial({ name: 'forgelab_bar_tape' })
+  readonly forgedUniforms = createForgedUniforms()
 
   private mapping: AssetMappingResult
   private readonly templates = new Map<string, Promise<Object3D>>()
@@ -84,6 +91,7 @@ export class ConfiguratorScene {
     private readonly map: ModelAssetMap,
     private readonly loadTemplate: TemplateLoader,
   ) {
+    installForgedPattern(this.paintMaterial, this.forgedUniforms)
     this.mapping = resolveAssetMap(root, map)
     // Start from the model's own paint so the first transition is smooth.
     const original = this.mapping.materials.paint[0] as Partial<MeshPhysicalMaterial> | undefined
@@ -129,7 +137,13 @@ export class ConfiguratorScene {
       this.paintTween = null
       this.setPaint(to)
     }
-    return { state: 'applied', kind: 'paint', message: 'Live paint preview — finishes are approximated without texture maps.' }
+    return {
+      state: 'applied',
+      kind: 'paint',
+      message: paint.finish === 'forged'
+        ? 'Live procedural shader — pattern generated on the GPU, no texture download.'
+        : 'Live paint preview — finishes are approximated without texture maps.',
+    }
   }
 
   async setVariant(group: GroupId, optionId: string | null): Promise<VisualStatus> {
@@ -210,6 +224,7 @@ export class ConfiguratorScene {
       metalness: from.metalness + (to.metalness - from.metalness) * e,
       clearcoat: from.clearcoat + (to.clearcoat - from.clearcoat) * e,
       clearcoatRoughness: from.clearcoatRoughness + (to.clearcoatRoughness - from.clearcoatRoughness) * e,
+      forged: from.forged + (to.forged - from.forged) * e,
     })
     if (t >= 1) this.paintTween = null
   }
@@ -249,7 +264,7 @@ export class ConfiguratorScene {
 
   private currentPaint(): PaintParams {
     const m = this.paintMaterial
-    return { color: m.color.clone(), roughness: m.roughness, metalness: m.metalness, clearcoat: m.clearcoat, clearcoatRoughness: m.clearcoatRoughness }
+    return { color: m.color.clone(), roughness: m.roughness, metalness: m.metalness, clearcoat: m.clearcoat, clearcoatRoughness: m.clearcoatRoughness, forged: this.forgedUniforms.uForged.value }
   }
 
   private setPaint(p: PaintParams) {
@@ -259,6 +274,7 @@ export class ConfiguratorScene {
     m.metalness = p.metalness
     m.clearcoat = p.clearcoat
     m.clearcoatRoughness = p.clearcoatRoughness
+    this.forgedUniforms.uForged.value = p.forged
   }
 
   /** Points every mesh using one of the named materials at `replacement`. */
@@ -309,7 +325,9 @@ export class ConfiguratorScene {
     if (!current?.parent) throw new MissingAssetError(`The base model has no "${slot}" to replace.`)
     const parent = current.parent
 
-    replacement.position.copy(current.position)
+    // Use the assembled position even if the view is currently exploded.
+    replacement.position.copy(basePositionOf(current))
+    if (current.userData.basePosition) replacement.userData.basePosition = basePositionOf(current)
     replacement.quaternion.copy(current.quaternion)
     replacement.scale.copy(current.scale)
 

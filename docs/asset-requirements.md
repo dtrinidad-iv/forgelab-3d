@@ -54,6 +54,7 @@ Full hierarchy, materials and per-mesh counts: [`asset-report.md`](./asset-repor
 | Bar tape | `kind: 'material'` — shared tape material recoloured. |
 | Size | `kind: 'derived'` from frame — reported as shown only when the frame for that size is mounted. |
 
+`explode` lists exploded-view offsets per node (metres, parent space; nested parts add up).
 `bakedVariants` records which options the base `road-bike.glb` already shows. Results come back
 from `ConfiguratorScene` per group (`applied` / `loading` / `unsupported` / `missing-asset` / `error`)
 and drive the "Shown in 3D" labels in the UI.

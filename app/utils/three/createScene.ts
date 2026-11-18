@@ -22,6 +22,7 @@ export interface ViewerContext {
   controls: OrbitControls
   pmrem: PMREMGenerator
   ground: Mesh
+  lights: { hemi: HemisphereLight; key: DirectionalLight; rim: DirectionalLight }
 }
 
 export class WebGLUnavailableError extends Error {
@@ -85,6 +86,11 @@ export function createScene(container: HTMLElement): ViewerContext {
   key.shadow.bias = -0.0005
   scene.add(key)
 
+  // Back/rim light — off in the studio preset, used by the "dramatic" lighting preset.
+  const rim = new DirectionalLight(0xcfe0ff, 0)
+  rim.position.set(-2, 1.6, -3)
+  scene.add(rim)
+
   // Invisible floor that only receives a soft shadow.
   const ground = new Mesh(new PlaneGeometry(10, 10), new ShadowMaterial({ opacity: 0.12 }))
   ground.rotation.x = -Math.PI / 2
@@ -107,5 +113,5 @@ export function createScene(container: HTMLElement): ViewerContext {
   controls.target.set(0, 0.5, 0)
   controls.update()
 
-  return { scene, camera, renderer, controls, pmrem, ground }
+  return { scene, camera, renderer, controls, pmrem, ground, lights: { hemi, key, rim } }
 }

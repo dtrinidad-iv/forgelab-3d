@@ -15,7 +15,9 @@ Seven steps: **Frame → Size → Paint → Groupset → Wheels → Cockpit → 
   scroll through options.
 - The build is saved in a cookie for 30 days; **Reset** (inside "Your build") restores the defaults.
 - Review: compatibility status, full spec sheet, **Download JSON / Copy**, **Add to cart** (demo store).
-- Viewer: drag to rotate, scroll/pinch or −/+ to zoom, ↺ to reset the camera.
+- Viewer: drag to rotate, scroll/pinch or −/+ to zoom, ↺ to reset the camera; **Explode** for the
+  exploded assembly view; **Studio / Daylight / Dramatic** lighting presets; **View in AR** on
+  supported phones (iPhone AR Quick Look, Android WebXR) showing the exact build at real size.
 
 ## Changing the catalog
 
@@ -39,7 +41,8 @@ Run `npm test` and `npm run typecheck` after any change.
 3. **Size** — press Next without choosing: required-selection validation. Pick XS then XL: the frame,
    bar height and saddle height change. Pick M.
 4. **Paint** — Racing Red, then Custom Colour → pick a blue, switch Matte/Gloss/Metallic: live PBR
-   changes, no reload. Note the price change (+$300).
+   changes, no reload. Then **Forged Pattern**: a procedural GPU shader (zoom in — no textures).
+   Note the price changes.
 5. **Groupset** — switch the three demo options: drivetrain finish changes; the 13-speed option
    has a 13-cog cassette.
 6. **Wheels** — Carbon Deep-Section: real geometry swap ("Updating wheels…").
@@ -50,6 +53,8 @@ Run `npm test` and `npm run typecheck` after any change.
 9. **Add to cart** — server validates and prices the build (SKUs, custom paint as line attributes),
    "Continue to checkout" explains the Shopify hand-off. Mention tampered requests are rejected.
 10. **Reload** the page — the whole build (including 3D parts) comes back.
+11. **Viewer tools** — Explode/Assemble, switch lighting presets, and on a phone tap **AR** to place
+    the exact build in the room at 1:1.
 
 Talking points: original brand/assets; honest 3D labels; server-side pricing; Shopify-ready
 interfaces; 53 automated tests incl. swap tests against the real model files.

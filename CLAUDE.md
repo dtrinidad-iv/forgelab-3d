@@ -43,7 +43,8 @@ app/
   plugins/configuration-persistence.ts   Cookie persistence (SSR-safe)
   types/                     Domain types
   utils/                     Pure logic (no Vue): pricing, configuration, compatibility, exportConfiguration (forgelab.configuration/v1)
-  utils/three/               Scene, loading, inspectModel, assetMapping, configuratorScene (paint + part swaps), dispose, placeholder
+  utils/three/               Scene, loading, inspectModel, assetMapping, configuratorScene (paint + part swaps),
+                             explodedView, lighting (presets), forgedPattern (procedural shader), ar (USDZ/WebXR), dispose, placeholder
 tests/                       Vitest unit tests (Node)
 scripts/bike/                Procedural bike generator (Node, tsx) — source of all GLBs
 scripts/inspect-glb.ts       CLI inspector

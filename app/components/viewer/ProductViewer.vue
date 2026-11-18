@@ -9,7 +9,7 @@
  *
  * Three.js objects live in plain variables on purpose — Vue proxies break Three internals.
  */
-import { type Object3D, Vector3 } from 'three'
+import { Group, Mesh, MeshBasicMaterial, type Object3D, RingGeometry, Vector3 } from 'three'
 import { FORGELAB_ROAD_BIKE, type ModelAssetMap } from '~/config/assetMap'
 import { GROUPS } from '~/config/catalog'
 import type { GroupId } from '~/types/configurator'
@@ -17,6 +17,9 @@ import { ConfiguratorScene, MissingAssetError, type VisualStatus, type VisualTar
 import { type AssetMappingResult, resolveAssetMap } from '~/utils/three/assetMapping'
 import { createScene, type ViewerContext, WebGLUnavailableError } from '~/utils/three/createScene'
 import { disposeObject3D } from '~/utils/three/dispose'
+import { exportUsdz, openQuickLook, supportsQuickLook, supportsWebXRAR } from '~/utils/three/ar'
+import { ExplodedView } from '~/utils/three/explodedView'
+import { LIGHTING_PRESETS, type LightingPresetId, LightingRig } from '~/utils/three/lighting'
 import { formatReport, inspectModel } from '~/utils/three/inspectModel'
 import { type CameraView, frameObject, loadModel, ModelNotFoundError } from '~/utils/three/loadModel'
 import { createPlaceholderBike } from '~/utils/three/placeholder'
@@ -40,6 +43,15 @@ const progress = ref(0)
 const errorMessage = ref('')
 const canRetry = ref(true)
 const missingComponents = ref<string[]>([])
+const isExploded = ref(false)
+const lighting = ref<LightingPresetId>('studio')
+// ---- AR state ----
+const arQuickLook = ref(false) // iOS AR Quick Look available
+const arWebXR = ref(false) // Android/Chrome WebXR AR available
+const arActive = ref(false) // WebXR session running
+const usdzReady = ref(false)
+const arOverlay = ref<HTMLDivElement | null>(null)
+const arPlaced = ref(false)
 const statuses = ref<Partial<Record<GroupId, VisualStatus>>>({})
 const updating = computed(() =>
   (Object.entries(statuses.value) as [GroupId, VisualStatus][])
@@ -52,10 +64,18 @@ let ctx: ViewerContext | null = null
 let modelRoot: Object3D | null = null
 let mapping: AssetMappingResult | null = null
 let configurator: ConfiguratorScene | null = null
+let exploded: ExplodedView | null = null
+let rig: LightingRig | null = null
 /** Last target handed to the scene (plain copy, used to diff). */
 let appliedTarget: VisualTarget | null = null
 let home: CameraView | null = null
-let frameId = 0
+let usdz: Uint8Array | null = null
+let usdzTimer: ReturnType<typeof setTimeout> | undefined
+let xrSession: XRSession | null = null
+let hitTestSource: XRHitTestSource | null = null
+let arAnchor: Group | null = null
+let reticle: Mesh | null = null
+let homeRootPosition: Vector3 | null = null
 let resizeObserver: ResizeObserver | null = null
 let abort: AbortController | null = null
 let disposed = false
@@ -96,6 +116,19 @@ function resetView() {
   if (home) animateTo(home.position, home.target)
 }
 
+function setLighting(id: LightingPresetId) {
+  lighting.value = id
+  rig?.set(id)
+}
+
+/** Exploded assembly toggle; pulls the camera back so the spread-out parts stay in frame. */
+function toggleExploded() {
+  if (!exploded) return
+  isExploded.value = !isExploded.value
+  exploded.set(isExploded.value)
+  zoom(isExploded.value ? 1.35 : 1 / 1.35)
+}
+
 function zoom(factor: number) {
   if (!ctx) return
   const { camera, controls } = ctx
@@ -105,14 +138,134 @@ function zoom(factor: number) {
 }
 
 // ---- Render loop / sizing ----
-function renderLoop(now = performance.now()) {
+/** Driven by renderer.setAnimationLoop so the same loop also serves WebXR AR sessions. */
+function renderLoop(now: number, frame?: XRFrame) {
   if (!ctx || disposed) return
-  frameId = requestAnimationFrame(renderLoop)
-  if (document.hidden) return
+  if (!arActive.value && document.hidden) return
   stepTween(now)
   configurator?.update(now)
-  ctx.controls.update()
+  exploded?.update(now)
+  rig?.update(now)
+  if (arActive.value) updateHitTest(frame)
+  else ctx.controls.update()
   ctx.renderer.render(ctx.scene, ctx.camera)
+}
+
+// ---- AR: iOS Quick Look (USDZ of the current build, prepared ahead so the tap opens it directly) ----
+function scheduleUsdz() {
+  if (!arQuickLook.value || !modelRoot || status.value !== 'ready') return
+  usdzReady.value = false
+  clearTimeout(usdzTimer)
+  usdzTimer = setTimeout(async () => {
+    const model = modelRoot
+    if (!model) return
+    try {
+      usdz = await exportUsdz(model)
+      if (model === modelRoot) usdzReady.value = true
+    } catch (err) {
+      console.error('[ProductViewer] USDZ export failed:', err)
+    }
+  }, 900)
+}
+
+function openAR() {
+  if (arQuickLook.value) {
+    if (usdz && usdzReady.value) openQuickLook(usdz) // synchronous inside the tap (Safari requirement)
+    return
+  }
+  if (arWebXR.value) void startWebXR()
+}
+
+// ---- AR: WebXR (Android Chrome + ARCore): place the live scene on the floor at 1:1 ----
+async function startWebXR() {
+  if (!ctx || !modelRoot || arActive.value) return
+  const xr = (navigator as Navigator & { xr?: XRSystem }).xr
+  if (!xr) return
+  try {
+    const session = await xr.requestSession('immersive-ar', {
+      requiredFeatures: ['hit-test'],
+      optionalFeatures: ['dom-overlay'],
+      domOverlay: arOverlay.value ? { root: arOverlay.value } : undefined,
+    } as XRSessionInit)
+    ctx.renderer.xr.enabled = true
+    ctx.renderer.xr.setReferenceSpaceType('local')
+    await ctx.renderer.xr.setSession(session)
+    xrSession = session
+    const viewerSpace = await session.requestReferenceSpace('viewer')
+    hitTestSource = (await session.requestHitTestSource?.({ space: viewerSpace })) ?? null
+
+    // Re-parent the bike under an anchor we can move onto the detected floor.
+    homeRootPosition = modelRoot.position.clone()
+    arAnchor = new Group()
+    arAnchor.add(modelRoot)
+    ctx.scene.add(arAnchor)
+    arAnchor.visible = false
+    ctx.ground.visible = false
+    reticle = new Mesh(new RingGeometry(0.12, 0.15, 48).rotateX(-Math.PI / 2), new MeshBasicMaterial({ color: 0xffffff }))
+    reticle.matrixAutoUpdate = false
+    reticle.visible = false
+    ctx.scene.add(reticle)
+    ctx.controls.enabled = false
+    arPlaced.value = false
+    arActive.value = true
+    session.addEventListener('select', placeOnReticle)
+    session.addEventListener('end', endWebXR)
+  } catch (err) {
+    console.error('[ProductViewer] Could not start AR:', err)
+  }
+}
+
+function updateHitTest(frame?: XRFrame) {
+  if (!ctx || !frame || !hitTestSource || !reticle) return
+  const space = ctx.renderer.xr.getReferenceSpace()
+  const hit = space ? frame.getHitTestResults(hitTestSource)[0] : undefined
+  const pose = hit && space ? hit.getPose(space) : undefined
+  reticle.visible = Boolean(pose)
+  if (pose) reticle.matrix.fromArray(pose.transform.matrix)
+}
+
+function placeOnReticle() {
+  if (!ctx || !arAnchor || !reticle?.visible || !homeRootPosition) return
+  const p = new Vector3().setFromMatrixPosition(reticle.matrix)
+  arAnchor.position.copy(p)
+  // Turn the bike side-on to the viewer (its length runs along X, the drive side faces +Z).
+  const cam = ctx.renderer.xr.getCamera().getWorldPosition(new Vector3())
+  arAnchor.rotation.set(0, Math.atan2(cam.x - p.x, cam.z - p.z), 0)
+  arAnchor.visible = true
+  arPlaced.value = true
+}
+
+function endWebXR() {
+  const session = xrSession
+  xrSession = null
+  hitTestSource?.cancel()
+  hitTestSource = null
+  session?.removeEventListener('select', placeOnReticle)
+  session?.removeEventListener('end', endWebXR)
+  if (ctx) {
+    if (reticle) {
+      ctx.scene.remove(reticle)
+      reticle.geometry.dispose()
+      ;(reticle.material as MeshBasicMaterial).dispose()
+    }
+    if (modelRoot && arAnchor) {
+      ctx.scene.add(modelRoot) // re-parent back
+      if (homeRootPosition) modelRoot.position.copy(homeRootPosition)
+      ctx.scene.remove(arAnchor)
+    }
+    ctx.ground.visible = true
+    ctx.renderer.xr.enabled = false
+    ctx.controls.enabled = true
+  }
+  reticle = null
+  arAnchor = null
+  arActive.value = false
+  arPlaced.value = false
+  resize()
+}
+
+function exitAR() {
+  void xrSession?.end()
 }
 
 function resize() {
@@ -263,18 +416,22 @@ async function load() {
     missingComponents.value = mapping.missing
     reportInDev(model, mapping)
     configurator = new ConfiguratorScene(model, props.assetMap, loadComponent)
+    exploded = Object.keys(props.assetMap.explode).length ? new ExplodedView(model, props.assetMap.explode) : null
+    isExploded.value = false
     // Apply the saved/current configuration before revealing the model.
     await applyTarget(props.target, false)
     if (disposed || signal.aborted) return
     status.value = 'ready'
     // Catch selections made while the model was loading.
-    void applyTarget(props.target)
+    void applyTarget(props.target).then(scheduleUsdz)
     emit('loaded', { placeholder: false, mapping })
   } catch (err) {
     if (disposed || signal.aborted) return
     if (err instanceof ModelNotFoundError) {
       setModel(createPlaceholderBike())
       mapping = null
+      exploded = null
+      isExploded.value = false
       markPlaceholderStatuses()
       status.value = 'placeholder'
       emit('loaded', { placeholder: true, mapping: null })
@@ -302,12 +459,15 @@ onMounted(() => {
   }
 
   ctx.controls.autoRotate = props.autoRotate
+  rig = new LightingRig(ctx)
+  arQuickLook.value = supportsQuickLook()
+  void supportsWebXRAR().then((ok) => (arWebXR.value = ok))
   // Manual interaction cancels any running camera animation.
   ctx.controls.addEventListener('start', () => (tween = null))
   resizeObserver = new ResizeObserver(resize)
   resizeObserver.observe(container.value)
   resize()
-  renderLoop()
+  ctx.renderer.setAnimationLoop(renderLoop)
   load()
 })
 
@@ -315,7 +475,7 @@ watch(() => props.assetMap.url, () => load())
 watch(
   () => props.target,
   (next) => {
-    if (status.value === 'ready') void applyTarget(next)
+    if (status.value === 'ready') void applyTarget(next).then(scheduleUsdz)
     else if (status.value === 'placeholder') markPlaceholderStatuses()
   },
   { deep: true },
@@ -328,12 +488,16 @@ watch(
 onBeforeUnmount(() => {
   disposed = true
   abort?.abort()
-  cancelAnimationFrame(frameId)
+  clearTimeout(usdzTimer)
+  if (xrSession) void xrSession.end().catch(() => {})
+  ctx?.renderer.setAnimationLoop(null)
   resizeObserver?.disconnect()
   resizeObserver = null
 
   if (!ctx) return
   void disposeConfigurator()
+  exploded = null
+  rig = null
   componentCache.clear()
   if (modelRoot) disposeObject3D(modelRoot)
   modelRoot = null
@@ -354,6 +518,9 @@ defineExpose({
   getMapping: () => configurator?.getMapping() ?? mapping,
   resetView,
   zoom,
+  toggleExploded,
+  setLighting,
+  openAR,
   reload: load,
 })
 </script>
@@ -393,6 +560,37 @@ defineExpose({
           Try again
         </button>
       </div>
+    </div>
+
+    <!-- WebXR DOM overlay (shown by the browser over the camera feed during AR) -->
+    <div ref="arOverlay" class="pointer-events-none" :class="arActive ? 'fixed inset-0 z-[60]' : 'hidden'">
+      <div v-if="arActive" class="pointer-events-auto absolute inset-x-0 top-0 flex items-center justify-between gap-3 p-4">
+        <p class="rounded-full bg-ink/80 px-4 py-2 text-sm text-bone">
+          {{ arPlaced ? 'Tap again to move the bike' : 'Point at the floor, then tap to place your bike' }}
+        </p>
+        <button type="button" class="rounded-full bg-bone px-4 py-2 text-sm font-medium text-ink" @click="exitAR">Exit AR</button>
+      </div>
+    </div>
+
+    <!-- Lighting presets -->
+    <div
+      v-if="status === 'ready' || status === 'placeholder'"
+      role="radiogroup"
+      aria-label="Lighting"
+      class="absolute left-3 top-3 flex rounded-full border border-bone-300 bg-white/80 p-0.5 text-[0.7rem] font-medium backdrop-blur sm:left-6 sm:top-5 lg:left-10"
+    >
+      <button
+        v-for="preset in LIGHTING_PRESETS"
+        :key="preset.id"
+        type="button"
+        role="radio"
+        :aria-checked="lighting === preset.id"
+        class="rounded-full px-2.5 py-1 transition-colors duration-200 sm:px-3"
+        :class="lighting === preset.id ? 'bg-ink text-bone' : 'text-graphite hover:text-ink'"
+        @click="setLighting(preset.id)"
+      >
+        {{ preset.label }}
+      </button>
     </div>
 
     <!-- Asset provenance / placeholder notice -->
@@ -440,11 +638,39 @@ defineExpose({
     <!-- View controls -->
     <div
       v-if="status === 'ready' || status === 'placeholder'"
-      class="absolute bottom-4 right-4 flex items-center gap-3 sm:bottom-6 sm:right-6"
+      class="absolute bottom-4 right-4 flex items-center gap-2 sm:bottom-6 sm:right-6 sm:gap-3"
     >
-      <p class="pointer-events-none hidden text-[0.7rem] uppercase tracking-[0.14em] text-graphite-400 xl:block">
+      <p class="pointer-events-none hidden text-[0.7rem] uppercase tracking-[0.14em] text-graphite-400 2xl:block">
         Drag to rotate · Scroll to zoom
       </p>
+      <button
+        v-if="status === 'ready' && (arQuickLook || arWebXR)"
+        type="button"
+        class="flex h-10 items-center gap-2 rounded-full bg-forge px-4 text-sm font-medium text-white transition-colors duration-200 hover:bg-forge-600 disabled:opacity-60"
+        :disabled="arQuickLook && !usdzReady"
+        title="View this exact build in your space at real size"
+        @click="openAR"
+      >
+        <svg viewBox="0 0 16 16" class="h-4 w-4" aria-hidden="true">
+          <path d="M8 1.8l5.4 3.1v6.2L8 14.2l-5.4-3.1V4.9L8 1.8zM2.8 5L8 8l5.2-3M8 8v6" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" />
+        </svg>
+        <span class="sm:hidden">{{ arQuickLook && !usdzReady ? '…' : 'AR' }}</span>
+        <span class="hidden sm:inline">{{ arQuickLook && !usdzReady ? 'Preparing AR…' : 'View in AR' }}</span>
+      </button>
+      <button
+        v-if="status === 'ready'"
+        type="button"
+        class="flex h-10 items-center gap-2 rounded-full border px-4 text-sm font-medium backdrop-blur transition-colors duration-200"
+        :class="isExploded ? 'border-ink bg-ink text-bone' : 'border-bone-300 bg-white/80 text-ink hover:bg-bone-200'"
+        :aria-pressed="isExploded"
+        title="Exploded assembly view"
+        @click="toggleExploded"
+      >
+        <svg viewBox="0 0 16 16" class="h-4 w-4" aria-hidden="true">
+          <path d="M6 6L2.5 2.5M2.5 2.5h2.8M2.5 2.5v2.8M10 6l3.5-3.5M13.5 2.5h-2.8M13.5 2.5v2.8M6 10l-3.5 3.5M2.5 13.5h2.8M2.5 13.5v-2.8M10 10l3.5 3.5M13.5 13.5h-2.8M13.5 13.5v-2.8" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        <span class="hidden sm:inline">{{ isExploded ? 'Assemble' : 'Explode' }}</span>
+      </button>
       <div class="flex overflow-hidden rounded-full border border-bone-300 bg-white/80 backdrop-blur">
         <button type="button" class="viewer-btn" aria-label="Zoom out" title="Zoom out" @click="zoom(1.25)">
           <svg viewBox="0 0 16 16" class="h-4 w-4" aria-hidden="true"><path d="M3.5 8h9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" /></svg>
