@@ -22,6 +22,7 @@ Shopify store.
 - [Try it in 2 minutes](#try-it-in-2-minutes)
 - [Highlights](#highlights)
 - [Features in detail](#features-in-detail)
+- [Studio admin: one-of-a-kind pieces](#studio-admin-one-of-a-kind-pieces)
 - [How checkout stays trustworthy](#how-checkout-stays-trustworthy)
 - [Tech stack](#tech-stack)
 - [Run locally](#run-locally)
@@ -38,10 +39,12 @@ Shopify store.
 2. **Frame → Endurance → Steel**: the frame geometry changes; wheels, bar and saddle stay mounted.
 3. **Paint → Forged Pattern**, then zoom in: a procedural GPU finish with no textures.
 4. In the viewer press **Ride** (authored animation) and **Explode** (animated exploded assembly).
-5. **Cockpit → Carbon Aero bar**: a compatibility rule fires with one-click fixes.
+5. **Cockpit → Carbon Aero bar**: a compatibility rule fires with one-click fixes. Further down,
+   **One-of-a-kind cover** shows a studio-uploaded photo mapped onto the 3D saddle.
 6. **Review → Add to cart**, ship to Texas: Shopify prices the build, then
    **Continue to checkout** opens the real Shopify checkout. It's a test store: the cart shows the
-   storefront password, and no real payment is taken.
+   storefront password, you're brought back to ForgeLab after entering it, and a banner continues
+   your checkout. No real payment is taken.
 7. On a phone, tap **AR** to place the exact build in your room at 1:1.
 
 ## Highlights
@@ -121,7 +124,38 @@ Shopify store.
 - **Region shipping rules** enforced before checkout (e.g. a finish that can't ship to some states),
   with "change finish / change destination" actions.
 - **Printable packing slip** with bill of materials, bin locations and an assembly checklist.
+- **Return from Shopify**: the store's theme sends its pages (and "Continue shopping" after an order)
+  back to the configurator; if a checkout is still open, a one-time banner resumes it.
 - No Shopify SDK: one typed `fetch`, so the bundle doesn't grow.
+
+## Studio admin: one-of-a-kind pieces
+
+For products where every piece is unique (a hide, a burl, a hand-finished part), the studio
+photographs the piece and publishes it in **`/admin`**. Buyers then choose that exact piece in the
+configurator, see the photo mapped onto the 3D part, and buy it as an inventory-of-one item.
+
+| | |
+|---|---|
+| ![Studio admin page with an uploaded piece](docs/screenshots/admin.jpg) | ![One-of-a-kind cover selected in the configurator](docs/screenshots/unique-cover.jpg) |
+| **`/admin`**: password-protected upload, *Mark sold*, *Delete* | **Cockpit step**: the piece's photo, story and price; *Only one* / *Sold* states |
+
+<p align="center"><img src="docs/screenshots/unique-cover-3d.jpg" alt="Uploaded photo mapped onto the 3D saddle" width="560"></p>
+<p align="center"><em>The uploaded photo is projected onto the saddle in 3D (planar UV mapping), so the buyer sees the exact piece.</em></p>
+
+How it works:
+- **Upload**: the photo is resized in the browser (max 1,200 px JPEG, which also drops EXIF/location
+  data) and sent with name, story and price. The server checks the password
+  (`NUXT_ADMIN_PASSWORD`), validates the fields, and checks the **file bytes** (JPEG/PNG/WebP
+  signatures, not the file name); max 1.5 MB, max 24 pieces.
+- **Storage**: Netlify Blobs in production (strongly consistent, so a change is visible on the next
+  request), a local `.data/` folder in development.
+- **Selling**: the server prices the piece from its own record, adds it as a separate cart line, and
+  refuses it once it's marked sold, so the same piece can't be sold twice.
+- **3D**: the photo is loaded as a texture and mapped onto the saddle-cover surface; it stays applied
+  when the saddle model is swapped, and the original cover is restored when the buyer picks
+  *Standard cover*.
+- In Shopify mode, pieces can be chosen and shown, but checkout refuses them until they are synced to
+  Shopify (see [Known limits](#known-limits)).
 
 ## How checkout stays trustworthy
 
@@ -208,10 +242,10 @@ docs/               architecture, guides, Shopify, assets, performance, deployme
 ## Quality
 
 - **TypeScript strict** across the app, server and Node scripts (`npm run typecheck`: 0 errors).
-- **88 unit tests** (Vitest). The swap engine, animation, AR exports and unique-piece mapping run against
+- **90 unit tests** (Vitest). The swap engine, animation, AR exports and unique-piece mapping run against
   the **real generated GLB files**, and commerce rules run against a fake Storefront API.
 - **End-to-end checks** (Playwright) on desktop and phone sizes, run against production builds and the
-  live site, through to Shopify checkout.
+  live site: through to Shopify checkout and back, and admin upload → 3D cover → cart → sold.
 - Honest UI: "Shown in 3D" appears only when the engine reports the part was actually mounted.
 
 ## Documentation
