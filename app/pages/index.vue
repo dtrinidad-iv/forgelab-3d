@@ -106,7 +106,7 @@ useSeoMeta({
         </div>
 
         <!-- Step content -->
-        <section class="flex-1 px-4 pb-40 pt-6 sm:px-6 lg:px-8 lg:pb-10 lg:pt-8">
+        <section class="flex-1 px-4 pb-[calc(10rem+var(--host-overlay-h,0px))] pt-6 sm:px-6 lg:px-8 lg:pb-10 lg:pt-8">
           <Transition name="step" mode="out-in">
             <div :key="currentStep.id">
               <p class="tabular text-xs font-semibold uppercase tracking-[0.14em] text-forge">
@@ -150,7 +150,7 @@ useSeoMeta({
         </section>
 
         <!-- Desktop footer: total + navigation always visible -->
-        <div class="sticky bottom-0 z-30 hidden border-t border-bone-300 bg-bone/95 px-8 py-4 backdrop-blur-md lg:block">
+        <div class="sticky bottom-0 z-30 hidden border-t border-bone-300 bg-bone/95 px-8 pb-[calc(1rem+var(--host-overlay-h,0px))] pt-4 backdrop-blur-md lg:block">
           <StepFooter />
         </div>
       </main>
@@ -159,7 +159,7 @@ useSeoMeta({
     <CartDialog />
 
     <!-- Mobile bottom bar -->
-    <div class="fixed inset-x-0 bottom-0 z-40 border-t border-bone-300 bg-bone/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur-md lg:hidden">
+    <div class="fixed inset-x-0 bottom-0 z-40 border-t border-bone-300 bg-bone/95 px-4 pb-[calc(max(0.75rem,env(safe-area-inset-bottom))+var(--host-overlay-h,0px))] pt-3 backdrop-blur-md lg:hidden">
       <StepFooter />
     </div>
   </div>

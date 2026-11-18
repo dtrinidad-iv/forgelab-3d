@@ -54,7 +54,7 @@ function goToCheckout() {
           aria-modal="true"
           aria-labelledby="cart-title"
           tabindex="-1"
-          class="max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-t-3xl bg-bone p-6 shadow-2xl outline-none sm:rounded-3xl sm:p-8"
+          class="mb-[var(--host-overlay-h,0px)] max-h-[calc(92dvh-var(--host-overlay-h,0px))] w-full max-w-lg overflow-y-auto rounded-t-3xl bg-bone p-6 shadow-2xl outline-none sm:rounded-3xl sm:p-8"
         >
           <div class="flex items-start justify-between gap-4">
             <div>
@@ -110,21 +110,24 @@ function goToCheckout() {
               </li>
             </ul>
 
-            <div class="mt-4 flex items-end justify-between">
-              <div>
-                <p class="text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-graphite-400">Total</p>
-                <p class="text-xs text-graphite">Priced by the server at {{ quotedAt }}</p>
+            <!-- Total + primary action stay pinned to the bottom of the dialog on short screens. -->
+            <div class="sticky -bottom-6 -mx-6 -mb-6 border-t border-bone-300 bg-bone px-6 pb-6 pt-4 sm:-bottom-8 sm:-mx-8 sm:-mb-8 sm:px-8 sm:pb-8">
+              <div class="flex items-end justify-between">
+                <div>
+                  <p class="text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-graphite-400">Total</p>
+                  <p class="text-xs text-graphite">Priced by the server at {{ quotedAt }}</p>
+                </div>
+                <span class="tabular font-display text-3xl font-semibold">{{ formatPrice(cart.cost.total.amount) }}</span>
               </div>
-              <span class="tabular font-display text-3xl font-semibold">{{ formatPrice(cart.cost.total.amount) }}</span>
-            </div>
-            <p v-if="!priceMatches" class="mt-2 text-xs font-medium text-forge-600">
-              The server price differs from the price shown in the configurator — the server price applies.
-            </p>
+              <p v-if="!priceMatches" class="mt-2 text-xs font-medium text-forge-600">
+                The server price differs from the price shown in the configurator — the server price applies.
+              </p>
 
-            <button type="button" class="mt-6 h-12 w-full rounded-full bg-ink text-sm font-medium text-bone transition-colors hover:bg-ink-700" @click="goToCheckout">
-              Continue to checkout
-            </button>
-            <p class="mt-3 text-center text-xs text-graphite-400">Build {{ quote?.buildId }} · Demo pricing in USD</p>
+              <button type="button" class="mt-4 h-12 w-full rounded-full bg-ink text-sm font-medium text-bone transition-colors hover:bg-ink-700" @click="goToCheckout">
+                Continue to checkout
+              </button>
+              <p class="mt-3 text-center text-xs text-graphite-400">Build {{ quote?.buildId }} · Demo pricing in USD</p>
+            </div>
           </div>
         </div>
       </div>
