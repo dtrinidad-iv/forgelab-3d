@@ -47,7 +47,7 @@ onBeforeUnmount(() => clearTimeout(copyTimer))
 </script>
 
 <template>
-  <div class="grid gap-8 lg:grid-cols-[1fr_auto]">
+  <div class="grid gap-6">
     <div class="min-w-0 space-y-6">
       <!-- Compatibility status -->
       <section aria-labelledby="compat-heading" class="space-y-3">
@@ -102,7 +102,7 @@ onBeforeUnmount(() => clearTimeout(copyTimer))
       </dl>
     </div>
 
-    <div class="flex flex-col gap-4 rounded-2xl bg-ink p-6 text-bone lg:sticky lg:top-36 lg:w-72 lg:self-start">
+    <div class="order-first flex flex-col gap-4 rounded-2xl bg-ink p-6 text-bone">
       <p class="text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-graphite-300">Build total</p>
       <PriceDisplay :value="total" size="lg" />
       <p v-if="frameWeight" class="text-sm text-graphite-300">Frameset {{ frameWeight.toLocaleString('en-US') }} g</p>

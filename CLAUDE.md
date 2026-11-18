@@ -48,7 +48,9 @@ tests/                       Vitest unit tests (Node)
 scripts/bike/                Procedural bike generator (Node, tsx) — source of all GLBs
 scripts/inspect-glb.ts       CLI inspector
 public/models/bicycle/       Generated GLBs: road-bike.glb + components/*.glb + manifest.json
-docs/                        asset-requirements.md, asset-report.md (more planned)
+app/commerce/                CommerceProvider interfaces, catalog→variant mapping, mock provider/service, Shopify stub
+server/api/commerce/         quote + cart routes (trusted pricing)
+docs/                        architecture, configurator-guide, shopify-integration, asset-requirements, blender-workflow, performance, deployment
 tests/ (planned)
 ```
 Note: top-level files in `app/utils/` and `app/composables/` are auto-imported — keep export names unique.
@@ -60,13 +62,13 @@ Note: top-level files in `app/utils/` and `app/composables/` are auto-imported �
 4. **No fake 3D.** 3D status shown in the UI comes from `ConfiguratorScene` results (`useVisualStatus`), never from the selection itself. Never present a UI-only selection as a 3D change. If geometry/material for an option is missing, say so in the UI and in reports. The procedural placeholder must stay labelled as temporary.
 5. **Asset mapping:** never assume GLB node names. Map logical ids (`frame_main`, `wheel_front`, …) to real nodes through the asset-mapping layer; handle missing nodes gracefully.
 6. **Catalog data only in `app/config/`.** No prices in templates. Prices are USD, per component; total = sum.
-7. **Client prices are display-only.** Real orders must be re-priced/validated server-side (Shopify variants or trusted service). Never put Shopify Admin secrets in browser code.
+7. **Client prices are display-only.** Commerce goes through `app/commerce` (`CommerceProvider`); the browser sends `OrderConfiguration` without prices; `server/api/commerce/*` strictly validates and prices. Real orders must be re-priced/validated server-side (Shopify variants or trusted service). Never put Shopify Admin secrets in browser code.
 8. **Compatibility rules are fictional** and must only use the invented `attrs` in the catalog — never real manufacturer specs. Label them "demo rule" in the UI.
 9. **Content:** all product names, specs and prices are fictional. Real brand names (e.g. groupset makers) may label demo options only, with the on-page disclaimer; never claim real specs or compatibility. No third-party logos.
 10. **Persistence:** configuration lives in the `forgelab_config` cookie; always pass untrusted input through `sanitizeConfiguration`.
 11. **Styling:** Tailwind brand tokens (`ink`, `graphite`, `bone`, `forge`; `font-display`, `ease-premium`). No ad-hoc hex colours in components (paint data excepted).
 12. **Accessibility:** option cards are `role="radio"` in a `radiogroup`; visible focus rings; keyboard-operable.
-13. **Responsive:** the 3D viewer is sticky (`--viewer-h`) so the bike stays visible while options scroll; verify at 390 px and 1440 px.
+13. **Responsive:** desktop = full-height sticky viewer left + configuration column right (stepper, options, pinned footer); mobile = sticky viewer (`--viewer-h`) that compacts on scroll. The bike must stay visible while choosing; verify at 390 px and 1440 px.
 
 ## 3D assets
 - The bike is an ORIGINAL procedural asset from `scripts/bike/` (no licensed third-party model was obtainable).

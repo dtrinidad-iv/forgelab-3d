@@ -65,7 +65,8 @@ const panelId = `group-${props.group}`
         :aria-required="definition.required"
         class="grid gap-3"
         :class="[
-          isSize ? 'grid-cols-3 sm:grid-cols-5' : 'sm:grid-cols-2 xl:grid-cols-3',
+          // Desktop cards live in the configuration column (460–540 px), so keep columns modest there.
+          isSize ? 'grid-cols-3 sm:grid-cols-5 lg:grid-cols-3 xl:grid-cols-5' : 'sm:grid-cols-2 lg:grid-cols-1 2xl:grid-cols-2',
           invalid ? 'rounded-2xl outline outline-1 outline-offset-4 outline-forge/50' : '',
         ]"
       >

@@ -127,12 +127,35 @@ function resize() {
 // ---- Configuration → 3D ----
 const cloneTarget = (t: VisualTarget): VisualTarget => JSON.parse(JSON.stringify(t))
 
-/** Component files are loaded through the same loader as the main model. */
-const loadComponent = (url: string) =>
-  loadModel(url).catch((err) => {
-    if (err instanceof ModelNotFoundError) throw new MissingAssetError(`Missing 3D asset: ${url}`)
-    throw err
-  })
+/**
+ * Component files are loaded through the same loader as the main model, via a shared cache so a
+ * prefetched file is never downloaded twice (ConfiguratorScene receives the same promise).
+ */
+const componentCache = new Map<string, Promise<Object3D>>()
+function loadComponent(url: string): Promise<Object3D> {
+  let p = componentCache.get(url)
+  if (!p) {
+    p = loadModel(url).catch((err) => {
+      componentCache.delete(url) // allow a retry
+      if (err instanceof ModelNotFoundError) throw new MissingAssetError(`Missing 3D asset: ${url}`)
+      throw err
+    })
+    componentCache.set(url, p)
+  }
+  return p
+}
+
+/** Start downloading the part files the current target needs, in parallel with the base model. */
+function prefetchComponents(target: VisualTarget | undefined) {
+  if (!target) return
+  for (const [group, visual] of Object.entries(props.assetMap.visuals) as [GroupId, NonNullable<ModelAssetMap['visuals'][GroupId]>][]) {
+    if (visual.kind !== 'component') continue
+    const option = target.variants[group]
+    if (!option || option === props.assetMap.bakedVariants[group]) continue
+    const url = visual.variants[option]
+    if (url) loadComponent(url).catch(() => {}) // errors are reported when the scene applies it
+  }
+}
 
 function setGroupStatus(group: GroupId, status: VisualStatus) {
   statuses.value = { ...statuses.value, [group]: status }
@@ -210,6 +233,7 @@ async function load() {
   errorMessage.value = ''
 
   try {
+    prefetchComponents(props.target)
     const model = await loadModel(props.assetMap.url, (r) => (progress.value = r), signal)
     if (disposed || signal.aborted) {
       disposeObject3D(model)
@@ -291,6 +315,7 @@ onBeforeUnmount(() => {
 
   if (!ctx) return
   void disposeConfigurator()
+  componentCache.clear()
   if (modelRoot) disposeObject3D(modelRoot)
   modelRoot = null
   mapping = null

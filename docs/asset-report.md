@@ -1,6 +1,6 @@
 # Asset report — road-bike.glb
 
-**Nodes** 60 · **Meshes** 32 · **Materials** 11 · **Geometries** 32 · **Vertices** 67,066 · **Triangles** 70,832
+**Nodes** 60 · **Meshes** 32 · **Materials** 11 · **Geometries** 26 · **Vertices** 67,064 · **Triangles** 70,832
 
 **Bounds (m)** min -0.745, 0, -0.22 · max 0.925, 1.001, 0.22 · size 1.67 × 1.001 × 0.439
 
@@ -89,7 +89,7 @@ AuxScene (Group)
 
 | Path | Materials | Vertices | Triangles | Size (m) |
 |---|---|---|---|---|
-| forgelab_road_bike / frame_main / frame_main__paint_frame | paint_frame | 2317 | 1952 | 0.882 × 0.586 × 0.138 |
+| forgelab_road_bike / frame_main / frame_main__paint_frame | paint_frame | 2315 | 1952 | 0.882 × 0.586 × 0.138 |
 | forgelab_road_bike / frame_main / frame_main__groupset_metal | groupset_metal | 172 | 112 | 0.012 × 0.012 × 0.15 |
 | forgelab_road_bike / frame_main / anchor_wheel_front / wheel_front / wheel_front__carbon_matte | carbon_matte | 1290 | 2304 | 0.624 × 0.624 × 0.028 |
 | forgelab_road_bike / frame_main / anchor_wheel_front / wheel_front / wheel_front__groupset_metal | groupset_metal | 1476 | 912 | 0.55 × 0.55 × 0.1 |
@@ -116,10 +116,10 @@ AuxScene (Group)
 | forgelab_road_bike / crankset / crankset__carbon_matte | carbon_matte | 516 | 336 | 0.335 × 0.127 × 0.158 |
 | forgelab_road_bike / crankset / crankset__alloy_dark | alloy_dark | 448 | 288 | 0.413 × 0.123 × 0.27 |
 | forgelab_road_bike / cassette / cassette__alloy_silver | alloy_silver | 3504 | 2304 | 0.142 × 0.142 × 0.04 |
-| forgelab_road_bike / chain / chain__chain_steel | chain_steel | 5047 | 8640 | 0.551 × 0.216 × 0.007 |
+| forgelab_road_bike / chain / chain__chain_steel | chain_steel | 5047 | 8640 | 0.551 × 0.217 × 0.007 |
 | forgelab_road_bike / derailleur_front / derailleur_front__groupset_metal | groupset_metal | 344 | 224 | 0.082 × 0.05 × 0.042 |
 | forgelab_road_bike / derailleur_rear / derailleur_rear__groupset_metal | groupset_metal | 812 | 528 | 0.056 × 0.157 × 0.041 |
 | forgelab_road_bike / brake_front / brake_front__groupset_metal | groupset_metal | 172 | 112 | 0.052 × 0.03 × 0.026 |
 | forgelab_road_bike / brake_rear / brake_rear__groupset_metal | groupset_metal | 172 | 112 | 0.052 × 0.03 × 0.026 |
 
-Generator: THREE.GLTFExporter r187 · ForgeLab 3D — original procedural asset (scripts/bike). Not derived from third-party models.
+Generator: glTF-Transform v4.5.1 · ForgeLab 3D — original procedural asset (scripts/bike). Not derived from third-party models.

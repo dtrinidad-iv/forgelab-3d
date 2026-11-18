@@ -15,14 +15,14 @@
   "assets": [
     {
       "file": "/models/bicycle/road-bike.glb",
-      "bytes": 2559544,
+      "bytes": 641820,
       "meshes": 32,
       "triangles": 70832,
       "kind": "assembly"
     },
     {
       "file": "/models/bicycle/components/frame-aero-carbon.glb",
-      "bytes": 153900,
+      "bytes": 51844,
       "meshes": 5,
       "triangles": 3072,
       "kind": "component",
@@ -31,7 +31,7 @@
     },
     {
       "file": "/models/bicycle/components/frame-endurance-carbon.glb",
-      "bytes": 153904,
+      "bytes": 51720,
       "meshes": 5,
       "triangles": 3072,
       "kind": "component",
@@ -40,7 +40,7 @@
     },
     {
       "file": "/models/bicycle/components/frame-titanium.glb",
-      "bytes": 153888,
+      "bytes": 51620,
       "meshes": 5,
       "triangles": 3072,
       "kind": "component",
@@ -49,7 +49,7 @@
     },
     {
       "file": "/models/bicycle/components/frame-steel.glb",
-      "bytes": 180472,
+      "bytes": 60828,
       "meshes": 7,
       "triangles": 3520,
       "kind": "component",
@@ -58,7 +58,7 @@
     },
     {
       "file": "/models/bicycle/components/wheels-alloy.glb",
-      "bytes": 909048,
+      "bytes": 162872,
       "meshes": 6,
       "triangles": 25376,
       "kind": "component",
@@ -67,7 +67,7 @@
     },
     {
       "file": "/models/bicycle/components/wheels-carbon-climbing.glb",
-      "bytes": 899836,
+      "bytes": 152052,
       "meshes": 8,
       "triangles": 25184,
       "kind": "component",
@@ -76,7 +76,7 @@
     },
     {
       "file": "/models/bicycle/components/wheels-carbon-deep.glb",
-      "bytes": 888576,
+      "bytes": 148960,
       "meshes": 8,
       "triangles": 24992,
       "kind": "component",
@@ -85,7 +85,7 @@
     },
     {
       "file": "/models/bicycle/components/handlebar-alloy-compact.glb",
-      "bytes": 585308,
+      "bytes": 133156,
       "meshes": 7,
       "triangles": 23792,
       "kind": "component",
@@ -94,7 +94,7 @@
     },
     {
       "file": "/models/bicycle/components/handlebar-carbon-ergo.glb",
-      "bytes": 551400,
+      "bytes": 137592,
       "meshes": 7,
       "triangles": 22176,
       "kind": "component",
@@ -103,7 +103,7 @@
     },
     {
       "file": "/models/bicycle/components/handlebar-carbon-aero.glb",
-      "bytes": 551716,
+      "bytes": 143060,
       "meshes": 7,
       "triangles": 22176,
       "kind": "component",
@@ -112,7 +112,7 @@
     },
     {
       "file": "/models/bicycle/components/stem-alloy.glb",
-      "bytes": 26328,
+      "bytes": 10480,
       "meshes": 1,
       "triangles": 448,
       "kind": "component",
@@ -121,7 +121,7 @@
     },
     {
       "file": "/models/bicycle/components/stem-carbon.glb",
-      "bytes": 21156,
+      "bytes": 8780,
       "meshes": 1,
       "triangles": 352,
       "kind": "component",
@@ -130,7 +130,7 @@
     },
     {
       "file": "/models/bicycle/components/saddle-comfort.glb",
-      "bytes": 308984,
+      "bytes": 115660,
       "meshes": 2,
       "triangles": 5488,
       "kind": "component",
@@ -139,7 +139,7 @@
     },
     {
       "file": "/models/bicycle/components/saddle-short-nose.glb",
-      "bytes": 493704,
+      "bytes": 187832,
       "meshes": 2,
       "triangles": 7412,
       "kind": "component",
@@ -148,7 +148,7 @@
     },
     {
       "file": "/models/bicycle/components/saddle-race-carbon.glb",
-      "bytes": 309004,
+      "bytes": 115664,
       "meshes": 2,
       "triangles": 5488,
       "kind": "component",

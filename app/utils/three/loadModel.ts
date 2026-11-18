@@ -2,6 +2,7 @@ import type { Group, Object3D, PerspectiveCamera } from 'three'
 import { Box3, Mesh, Vector3 } from 'three'
 import type { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js'
 
 /** Thrown when the model file simply isn't there yet (expected during early development). */
 export class ModelNotFoundError extends Error {
@@ -12,28 +13,24 @@ export class ModelNotFoundError extends Error {
 }
 
 /**
- * Loads a .glb/.gltf. Resolves to the scene root, or throws:
- *  - ModelNotFoundError  → file missing (caller should show the placeholder)
- *  - Error               → file exists but failed to parse/load (caller should show error UI)
- *
- * TODO: add DRACOLoader / MeshoptDecoder here if the Blender export uses compression.
+ * Loads a .glb (Meshopt-compressed or plain) with a SINGLE request. Resolves to the scene root, or throws:
+ *  - ModelNotFoundError  → file missing (caller should show the placeholder / report a missing asset)
+ *  - Error               → file exists but failed to download or parse (caller should show error UI)
  */
 export async function loadModel(
   url: string,
   onProgress?: (ratio: number) => void,
   signal?: AbortSignal,
 ): Promise<Group> {
-  // Cheap existence check first. Nuxt's dev server may answer missing files with an HTML
-  // 404 page, so also reject HTML content types.
-  const head = await fetch(url, { method: 'HEAD', signal })
-  const type = head.headers.get('content-type') ?? ''
-  if (head.status === 404 || type.includes('text/html')) throw new ModelNotFoundError(url)
-  if (!head.ok) throw new Error(`Failed to fetch model (${head.status} ${head.statusText})`)
+  const res = await fetch(url, { signal })
+  // Nuxt's dev server may answer missing files with an HTML/JSON 404 page.
+  const type = res.headers.get('content-type') ?? ''
+  if (res.status === 404 || type.includes('text/html')) throw new ModelNotFoundError(url)
+  if (!res.ok) throw new Error(`Failed to fetch model (${res.status} ${res.statusText})`)
 
-  const loader = new GLTFLoader()
-  const gltf = await loader.loadAsync(url, (e) => {
-    if (e.lengthComputable && e.total > 0) onProgress?.(e.loaded / e.total)
-  })
+  const buffer = await readWithProgress(res, onProgress)
+  const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder)
+  const gltf = await loader.parseAsync(buffer, url.slice(0, url.lastIndexOf('/') + 1))
 
   gltf.scene.traverse((child) => {
     if (child instanceof Mesh) {
@@ -42,6 +39,34 @@ export async function loadModel(
     }
   })
   return gltf.scene
+}
+
+async function readWithProgress(res: Response, onProgress?: (ratio: number) => void): Promise<ArrayBuffer> {
+  const total = Number(res.headers.get('content-length')) || 0
+  if (!onProgress || !total || !res.body) return res.arrayBuffer()
+  const reader = res.body.getReader()
+  const out = new Uint8Array(total)
+  let received = 0
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    if (received + value.length > out.length) return concatFallback(out.subarray(0, received), value, reader)
+    out.set(value, received)
+    received += value.length
+    onProgress(received / total)
+  }
+  return out.buffer.slice(0, received)
+}
+
+/** content-length was wrong (e.g. compressed transfer): collect the rest without pre-sizing. */
+async function concatFallback(head: Uint8Array, chunk: Uint8Array, reader: ReadableStreamDefaultReader<Uint8Array>): Promise<ArrayBuffer> {
+  const parts = [head.slice(), chunk]
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    parts.push(value)
+  }
+  return new Blob(parts as BlobPart[]).arrayBuffer()
 }
 
 /**

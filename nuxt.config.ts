@@ -28,6 +28,16 @@ export default defineNuxtConfig({
     ],
   },
 
+  runtimeConfig: {
+    // Server-only secrets (future Shopify integration). Never exposed to the browser.
+    shopifyStorefrontPrivateToken: '',
+    public: {
+      /** 'mock' (default) or 'shopify' — NUXT_PUBLIC_COMMERCE_PROVIDER */
+      commerceProvider: 'mock',
+      shopifyStoreDomain: '',
+    },
+  },
+
   app: {
     head: {
       title: 'ForgeLab — Build your road bike',
@@ -36,6 +46,8 @@ export default defineNuxtConfig({
         { name: 'viewport', content: 'width=device-width, initial-scale=1, viewport-fit=cover' },
         { name: 'description', content: 'Configure a hand-built ForgeLab road bicycle in 3D.' },
         { name: 'theme-color', content: '#0E0F11' },
+        // Private client demo — keep it out of search engines.
+        { name: 'robots', content: 'noindex, nofollow' },
       ],
     },
   },

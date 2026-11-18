@@ -13,6 +13,10 @@ import { dirname, join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { Group, type Object3D } from 'three'
 import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js'
+import { Logger, NodeIO } from '@gltf-transform/core'
+import { ALL_EXTENSIONS } from '@gltf-transform/extensions'
+import { meshopt } from '@gltf-transform/functions'
+import { MeshoptDecoder, MeshoptEncoder } from 'meshoptimizer'
 import { buildHandlebar, buildStem, HANDLEBARS, STEMS } from './cockpit'
 import { buildBrakes, buildCassette, buildChain, buildCrankset, buildFrontDerailleur, buildRearDerailleur } from './drivetrain'
 import { buildFork, buildFrame, buildFrameset, buildSeatpost, FRAMES } from './frame'
@@ -72,11 +76,29 @@ function buildBike(): Group {
   return bike
 }
 
+/**
+ * Meshopt compression (EXT_meshopt_compression + quantization). Chosen over Draco after measuring
+ * the real bike: 2.5 MB → ~540 KB (≈190 KB gzipped, within ~12 KB of Draco) with a ~20 KB decoder,
+ * no WASM files to host, fast decode, and it works in Node tests. See docs/performance.md.
+ * Node names, empty anchor nodes, material names and clearcoat are preserved.
+ */
+async function compress(glb: ArrayBuffer): Promise<Uint8Array> {
+  await MeshoptEncoder.ready
+  const io = new NodeIO()
+    .setLogger(new Logger(Logger.Verbosity.WARN))
+    .registerExtensions(ALL_EXTENSIONS)
+    .registerDependencies({ 'meshopt.encoder': MeshoptEncoder, 'meshopt.decoder': MeshoptDecoder })
+  const doc = await io.readBinary(new Uint8Array(glb))
+  await doc.transform(meshopt({ encoder: MeshoptEncoder, level: 'medium' }))
+  return io.writeBinary(doc)
+}
+
 async function exportGlb(object: Object3D, file: string) {
   const exporter = new GLTFExporter()
-  const data = (await exporter.parseAsync(object, { binary: true, onlyVisible: false, copyright: COPYRIGHT } as Parameters<GLTFExporter['parseAsync']>[1])) as ArrayBuffer
+  const raw = (await exporter.parseAsync(object, { binary: true, onlyVisible: false, copyright: COPYRIGHT } as Parameters<GLTFExporter['parseAsync']>[1])) as ArrayBuffer
+  const data = process.env.NO_COMPRESS ? new Uint8Array(raw) : await compress(raw)
   await mkdir(dirname(file), { recursive: true })
-  await writeFile(file, Buffer.from(data))
+  await writeFile(file, data)
   return data.byteLength
 }
 

@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { Object3D } from 'three'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js'
 import { MissingAssetError } from '~/utils/three/configuratorScene'
 
 const PUBLIC = join(import.meta.dirname, '../../public')
@@ -15,6 +16,6 @@ export async function loadGlb(url: string): Promise<Object3D> {
     throw new MissingAssetError(`Missing 3D asset: ${url}`)
   }
   const arrayBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength) as ArrayBuffer
-  const gltf = await new GLTFLoader().parseAsync(arrayBuffer, '')
+  const gltf = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).parseAsync(arrayBuffer, '')
   return gltf.scene
 }

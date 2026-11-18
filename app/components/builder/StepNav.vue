@@ -11,6 +11,13 @@ watch(stepIndex, async (i) => {
   el?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' })
 })
 
+/** Progress over the selection steps (Review excluded). */
+const progress = computed(() => {
+  const selectable = steps.filter((s) => s.id !== 'review')
+  const done = selectable.filter((s) => isStepComplete(steps.indexOf(s))).length
+  return { done, total: selectable.length, pct: Math.round((done / selectable.length) * 100) }
+})
+
 type State = 'current' | 'complete' | 'available' | 'locked'
 function stateOf(i: number): State {
   if (i === stepIndex.value) return 'current'
@@ -21,11 +28,11 @@ function stateOf(i: number): State {
 
 <template>
   <nav aria-label="Configuration steps">
-    <ol ref="scroller" class="no-scrollbar flex gap-1 overflow-x-auto">
+    <ol ref="scroller" class="no-scrollbar flex gap-1 overflow-x-auto lg:grid lg:grid-cols-7 lg:overflow-visible">
       <li v-for="(step, i) in steps" :key="step.id" :data-step="i" class="shrink-0">
         <button
           type="button"
-          class="group flex items-center gap-2 rounded-full px-3.5 py-2 text-sm transition-colors duration-300 ease-premium focus:outline-none focus-visible:ring-2 focus-visible:ring-forge disabled:cursor-not-allowed"
+          class="group relative flex items-center gap-2 rounded-full px-3.5 py-2 text-sm transition-colors duration-300 ease-premium focus:outline-none focus-visible:ring-2 focus-visible:ring-forge disabled:cursor-not-allowed lg:w-full lg:flex-col lg:gap-1.5 lg:rounded-xl lg:px-1 lg:py-2.5 lg:text-[0.72rem]"
           :class="{
             'bg-ink text-bone': stateOf(i) === 'current',
             'text-ink hover:bg-bone-200': stateOf(i) === 'complete',
@@ -51,10 +58,18 @@ function stateOf(i: number): State {
             </svg>
             <template v-else>{{ i + 1 }}</template>
           </span>
-          <span class="font-medium">{{ step.label }}</span>
-          <span v-if="stepHasError(step)" class="-ml-0.5 h-1.5 w-1.5 rounded-full bg-forge" aria-hidden="true" />
+          <span class="font-medium lg:leading-none">{{ step.label }}</span>
+          <span v-if="stepHasError(step)" class="-ml-0.5 h-1.5 w-1.5 rounded-full bg-forge lg:absolute lg:right-2 lg:top-2 lg:ml-0" aria-hidden="true" />
         </button>
       </li>
     </ol>
+
+    <!-- Progress -->
+    <div class="mt-2 flex items-center gap-3 px-1 lg:mt-3">
+      <div class="h-1 flex-1 overflow-hidden rounded-full bg-bone-300" role="progressbar" :aria-valuenow="progress.done" :aria-valuemin="0" :aria-valuemax="progress.total" aria-label="Steps completed">
+        <div class="h-full rounded-full bg-forge transition-[width] duration-500 ease-premium" :style="{ width: `${progress.pct}%` }" />
+      </div>
+      <span class="tabular shrink-0 text-[0.7rem] font-medium text-graphite">{{ progress.done }}/{{ progress.total }} complete</span>
+    </div>
   </nav>
 </template>
