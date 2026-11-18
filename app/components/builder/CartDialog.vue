@@ -72,7 +72,11 @@ async function copyPassword() {
 function goToCheckout() {
   if (!cart.value) return
   if (provider.checkout.isDemo) showCheckout.value = true
-  else window.location.href = provider.checkout.checkoutUrl(cart.value)
+  else {
+    const url = provider.checkout.checkoutUrl(cart.value)
+    rememberCheckout(url) // lets the buyer resume after the dev-store password page
+    window.location.href = url
+  }
 }
 </script>
 
@@ -209,7 +213,7 @@ function goToCheckout() {
                   <code class="rounded bg-bone-200 px-1.5 py-0.5 font-mono text-ink">{{ storePassword }}</code>
                   <button type="button" class="ml-1 font-medium text-ink underline underline-offset-2" @click="copyPassword">{{ copied ? 'Copied' : 'Copy' }}</button>
                 </p>
-                <p class="mt-1">At checkout, pay with the test card Shopify shows on the payment step.</p>
+                <p class="mt-1">After the password you'll come back here — press <span class="font-medium text-ink">Continue to checkout</span> in the banner. Pay with the test card Shopify shows on the payment step.</p>
               </div>
 
               <button type="button" class="mt-4 h-12 w-full rounded-full bg-ink text-sm font-medium text-bone transition-colors hover:bg-ink-700" @click="goToCheckout">

@@ -1,8 +1,17 @@
 import { randomBytes } from 'node:crypto'
+import { createStorage, type Storage } from 'unstorage'
+import netlifyBlobsDriver from 'unstorage/drivers/netlify-blobs'
 import { MAX_IMAGE_BYTES, MAX_PIECES, PIECE_ID, type UniquePiece } from '~/types/pieces'
 
-/** Storage: Netlify Blobs on Netlify, ./.data/pieces locally (see nitro.storage in nuxt.config). */
-export const piecesStore = () => useStorage('pieces')
+const onNetlifyBlobs = () => Boolean((globalThis as { netlifyBlobsContext?: string }).netlifyBlobsContext || process.env.NETLIFY_BLOBS_CONTEXT)
+
+/**
+ * Storage: Netlify Blobs on Netlify, ./.data/pieces locally (nitro.storage in nuxt.config).
+ * On Netlify a NEW client is created per call: @netlify/blobs reads the access token when the store
+ * is created, and that token is short-lived per invocation — a cached client starts failing with 401.
+ */
+export const piecesStore = (): Storage =>
+  onNetlifyBlobs() ? createStorage({ driver: netlifyBlobsDriver({ name: 'forgelab-pieces' }) }) : useStorage('pieces')
 
 export async function listPieces(): Promise<UniquePiece[]> {
   const store = piecesStore()

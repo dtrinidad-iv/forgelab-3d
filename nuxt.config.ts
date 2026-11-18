@@ -32,8 +32,9 @@ export default defineNuxtConfig({
   // (same gap as routeRules), but Nitro does honour `storage` at build time.
   nitro: {
     storage: {
-      // Unique-piece photos + metadata: Netlify Blobs when built on Netlify, a local folder otherwise.
-      pieces: process.env.NETLIFY ? { driver: 'netlify-blobs', name: 'forgelab-pieces' } : { driver: 'fs', base: './.data/pieces' },
+      // Unique-piece photos + metadata in a local folder. On Netlify, server/utils/pieces.ts uses
+      // Netlify Blobs directly (a fresh client per request — Blobs tokens are short-lived).
+      pieces: { driver: 'fs', base: './.data/pieces' },
     },
   } as Record<string, unknown>,
 

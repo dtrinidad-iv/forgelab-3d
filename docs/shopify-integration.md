@@ -26,6 +26,22 @@ No Shopify packages — one typed `fetch` (`app/commerce/shopify/storefront.ts`)
 5. **Settings → Markets**: add the countries you sell to (US, CA, GB, DE/FR/IT, JP, AU). A country
    outside every market can't check out; each market's currency is what Shopify charges.
 6. Test payments: Settings → Payments → test mode / Bogus gateway.
+7. **Send store pages back to the configurator** (headless setup). Online Store → Themes → ⋯ →
+   Edit code → `layout/theme.liquid`, first lines inside `<head>`:
+
+   ```liquid
+   {%- unless request.design_mode -%}
+     <meta http-equiv="refresh" content="0; url=https://relaxed-custard-cb3af1.netlify.app/?from=shopify">
+     <script>window.location.replace('https://relaxed-custard-cb3af1.netlify.app/?from=shopify')</script>
+   {%- endunless -%}
+   ```
+
+   Every Online Store page (home, catalog, the "Continue shopping" link and logo after checkout)
+   then returns to the configurator. Checkout, the thank-you page and the password page are not
+   theme pages, so they keep working; the theme editor (`design_mode`) stays usable.
+   On a dev store the password page lands on the home page → redirected back with `?from=shopify` →
+   the configurator offers **Continue to checkout** for the checkout the buyer had opened
+   (`usePendingCheckout`, one-shot, Shopify URLs only, max 1 hour old).
 
 ### Known limits
 

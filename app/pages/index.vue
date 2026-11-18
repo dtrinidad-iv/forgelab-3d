@@ -183,6 +183,7 @@ useSeoMeta({
     </div>
 
     <CartDialog />
+    <CheckoutResumeBanner />
 
     <!-- Mobile bottom bar -->
     <div class="fixed inset-x-0 bottom-0 z-40 border-t border-bone-300 bg-bone/95 px-4 pb-[calc(max(0.75rem,env(safe-area-inset-bottom))+var(--host-overlay-h,0px))] pt-3 backdrop-blur-md lg:hidden">
