@@ -17,6 +17,8 @@ export default defineNuxtConfig({
   typescript: {
     strict: true,
     typeCheck: false, // run `npm run typecheck` explicitly
+    // Node scripts (generator, inspector) are checked separately via scripts/tsconfig.json.
+    tsConfig: { exclude: ['../scripts'] },
   },
 
   fonts: {

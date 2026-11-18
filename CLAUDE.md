@@ -17,7 +17,9 @@ Seven steps: Frame → Size → Paint → Groupset → Wheels → Cockpit (handl
 
 ## Commands
 - `npm run dev` — http://localhost:3000
-- `npm run typecheck`
+- `npm run typecheck` — app (vue-tsc) + Node scripts (`scripts/tsconfig.json`)
+- `npm run generate:bike` — regenerate the procedural bike GLBs into `public/models/bicycle/`
+- `npm run inspect:glb -- <file.glb> [--out report.md]` — asset inspection report
 - `npm run build` / `npm run preview` (stop `dev` first — Nuxt refuses to build while dev runs)
 
 ## Structure
@@ -33,11 +35,15 @@ app/
     useConfiguratorSteps.ts  Step navigation, completion, required-selection validation, reset
     usePricing.ts            Reactive wrapper over utils/pricing.ts
   config/catalog.ts          Steps, groups, options, prices, defaults — ALL catalog data
+  config/assetMap.ts         Logical component ids → model node/material names
   plugins/configuration-persistence.ts   Cookie persistence (SSR-safe)
   types/                     Domain types
-  utils/                     Pure logic (no Vue): pricing.ts, configuration.ts; three/ = Three.js helpers
-public/models/bicycle/       GLB assets (expected: road-bike.glb)
-docs/ (planned)              architecture, assets, blender, shopify, configurator guide
+  utils/                     Pure logic (no Vue): pricing.ts, configuration.ts
+  utils/three/               Scene, loading, inspectModel, assetMapping, dispose, placeholder
+scripts/bike/                Procedural bike generator (Node, tsx) — source of all GLBs
+scripts/inspect-glb.ts       CLI inspector
+public/models/bicycle/       Generated GLBs: road-bike.glb + components/*.glb + manifest.json
+docs/                        asset-requirements.md, asset-report.md (more planned)
 tests/ (planned)
 ```
 Note: top-level files in `app/utils/` and `app/composables/` are auto-imported — keep export names unique.
@@ -56,7 +62,9 @@ Note: top-level files in `app/utils/` and `app/composables/` are auto-imported �
 11. **Accessibility:** option cards are `role="radio"` in a `radiogroup`; visible focus rings; keyboard-operable.
 12. **Responsive:** verify at 390 px and 1440 px.
 
-## 3D asset conventions
-- glTF Binary (`.glb`), +Y up, metres, transforms applied, wheels on the ground plane.
-- Use a properly licensed model; record source + licence in `docs/asset-requirements.md`.
+## 3D assets
+- The bike is an ORIGINAL procedural asset from `scripts/bike/` (no licensed third-party model was obtainable).
+  Label it as such; never present it as scanned/artist-made. Change geometry in the generator, then re-run it — never hand-edit GLBs.
+- Contract (axes, anchors, component + material names): `docs/asset-requirements.md`.
+- Swappable parts mount as children of `anchor_*` nodes; their local origin is the mount point.
 - Evaluate Draco / Meshopt / KTX2 against the actual model; don't apply blindly.

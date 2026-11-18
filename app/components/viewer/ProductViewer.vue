@@ -2,28 +2,30 @@
 /**
  * ProductViewer — reusable Three.js viewer (client-only; wrap in <ClientOnly>).
  *
- * Tries to load `modelUrl`. If the file doesn't exist yet, it falls back to a clearly
- * labelled TEMPORARY placeholder. If the file exists but fails to load, it shows an
- * error state with retry. All GPU resources are released on unmount.
+ * Loads the model described by `assetMap`, resolves logical components through the
+ * asset-mapping layer, and reports missing parts. If the file doesn't exist it falls back
+ * to a clearly labelled TEMPORARY placeholder; if it exists but fails, it shows an error.
  *
- * Three.js objects are kept in plain (non-reactive) variables on purpose:
- * wrapping them in Vue proxies breaks Three internals and hurts performance.
+ * Three.js objects live in plain variables on purpose — Vue proxies break Three internals.
  */
-import type { Object3D } from 'three'
-import { createScene, WebGLUnavailableError, type ViewerContext } from '~/utils/three/createScene'
+import { type Object3D, Vector3 } from 'three'
+import { FORGELAB_ROAD_BIKE, type ModelAssetMap } from '~/config/assetMap'
+import { type AssetMappingResult, resolveAssetMap } from '~/utils/three/assetMapping'
+import { createScene, type ViewerContext, WebGLUnavailableError } from '~/utils/three/createScene'
 import { disposeObject3D } from '~/utils/three/dispose'
-import { frameObject, loadModel, ModelNotFoundError } from '~/utils/three/loadModel'
+import { formatReport, inspectModel } from '~/utils/three/inspectModel'
+import { type CameraView, frameObject, loadModel, ModelNotFoundError } from '~/utils/three/loadModel'
 import { createPlaceholderBike } from '~/utils/three/placeholder'
 
 type ViewerStatus = 'loading' | 'ready' | 'placeholder' | 'error'
 
-const props = withDefaults(defineProps<{ modelUrl?: string; autoRotate?: boolean }>(), {
-  modelUrl: '/models/bicycle/road-bike.glb',
+const props = withDefaults(defineProps<{ assetMap?: ModelAssetMap; autoRotate?: boolean }>(), {
+  assetMap: () => FORGELAB_ROAD_BIKE,
   autoRotate: false,
 })
 
 const emit = defineEmits<{
-  loaded: [payload: { placeholder: boolean }]
+  loaded: [payload: { placeholder: boolean; mapping: AssetMappingResult | null }]
   error: [error: Error]
 }>()
 
@@ -32,18 +34,67 @@ const status = ref<ViewerStatus>('loading')
 const progress = ref(0)
 const errorMessage = ref('')
 const canRetry = ref(true)
+const missingComponents = ref<string[]>([])
 
 let ctx: ViewerContext | null = null
 let modelRoot: Object3D | null = null
+let mapping: AssetMappingResult | null = null
+let home: CameraView | null = null
 let frameId = 0
 let resizeObserver: ResizeObserver | null = null
 let abort: AbortController | null = null
 let disposed = false
 
-function renderLoop() {
+// ---- Camera tween (reset / zoom buttons) ----
+interface Tween {
+  fromPos: Vector3
+  toPos: Vector3
+  fromTarget: Vector3
+  toTarget: Vector3
+  start: number
+  duration: number
+}
+let tween: Tween | null = null
+
+function animateTo(position: Vector3, target: Vector3, duration = 650) {
+  if (!ctx) return
+  tween = {
+    fromPos: ctx.camera.position.clone(),
+    toPos: position.clone(),
+    fromTarget: ctx.controls.target.clone(),
+    toTarget: target.clone(),
+    start: performance.now(),
+    duration,
+  }
+}
+
+function stepTween(now: number) {
+  if (!ctx || !tween) return
+  const t = Math.min((now - tween.start) / tween.duration, 1)
+  const e = 1 - Math.pow(1 - t, 3)
+  ctx.camera.position.lerpVectors(tween.fromPos, tween.toPos, e)
+  ctx.controls.target.lerpVectors(tween.fromTarget, tween.toTarget, e)
+  if (t >= 1) tween = null
+}
+
+function resetView() {
+  if (home) animateTo(home.position, home.target)
+}
+
+function zoom(factor: number) {
+  if (!ctx) return
+  const { camera, controls } = ctx
+  const offset = camera.position.clone().sub(controls.target)
+  const distance = Math.min(Math.max(offset.length() * factor, controls.minDistance), controls.maxDistance)
+  animateTo(controls.target.clone().add(offset.setLength(distance)), controls.target, 350)
+}
+
+// ---- Render loop / sizing ----
+function renderLoop(now = performance.now()) {
   if (!ctx || disposed) return
   frameId = requestAnimationFrame(renderLoop)
   if (document.hidden) return
+  stepTween(now)
   ctx.controls.update()
   ctx.renderer.render(ctx.scene, ctx.camera)
 }
@@ -62,7 +113,17 @@ function setModel(object: Object3D) {
   if (modelRoot) disposeObject3D(modelRoot)
   modelRoot = object
   ctx.scene.add(object)
-  frameObject(object, ctx.camera, ctx.controls)
+  home = frameObject(object, ctx.camera, ctx.controls)
+}
+
+function reportInDev(model: Object3D, result: AssetMappingResult) {
+  if (!import.meta.dev) return
+  console.groupCollapsed(`[ForgeLab] Model inspection — ${props.assetMap.url}`)
+  console.log(formatReport(inspectModel(model), props.assetMap.id))
+  console.log('Mapped components:', result.found)
+  if (result.missing.length) console.warn('Missing components:', result.missing)
+  if (result.missingMaterials.length) console.warn('Missing materials:', result.missingMaterials)
+  console.groupEnd()
 }
 
 async function load() {
@@ -76,20 +137,24 @@ async function load() {
   errorMessage.value = ''
 
   try {
-    const model = await loadModel(props.modelUrl, (r) => (progress.value = r), signal)
+    const model = await loadModel(props.assetMap.url, (r) => (progress.value = r), signal)
     if (disposed || signal.aborted) {
       disposeObject3D(model)
       return
     }
     setModel(model)
+    mapping = resolveAssetMap(model, props.assetMap)
+    missingComponents.value = mapping.missing
+    reportInDev(model, mapping)
     status.value = 'ready'
-    emit('loaded', { placeholder: false })
+    emit('loaded', { placeholder: false, mapping })
   } catch (err) {
     if (disposed || signal.aborted) return
     if (err instanceof ModelNotFoundError) {
       setModel(createPlaceholderBike())
+      mapping = null
       status.value = 'placeholder'
-      emit('loaded', { placeholder: true })
+      emit('loaded', { placeholder: true, mapping: null })
       return
     }
     const error = err instanceof Error ? err : new Error(String(err))
@@ -114,6 +179,8 @@ onMounted(() => {
   }
 
   ctx.controls.autoRotate = props.autoRotate
+  // Manual interaction cancels any running camera animation.
+  ctx.controls.addEventListener('start', () => (tween = null))
   resizeObserver = new ResizeObserver(resize)
   resizeObserver.observe(container.value)
   resize()
@@ -121,7 +188,7 @@ onMounted(() => {
   load()
 })
 
-watch(() => props.modelUrl, () => load())
+watch(() => props.assetMap.url, () => load())
 watch(
   () => props.autoRotate,
   (v) => ctx && (ctx.controls.autoRotate = v),
@@ -137,6 +204,7 @@ onBeforeUnmount(() => {
   if (!ctx) return
   if (modelRoot) disposeObject3D(modelRoot)
   modelRoot = null
+  mapping = null
   disposeObject3D(ctx.ground)
   ctx.scene.environment?.dispose()
   ctx.pmrem.dispose()
@@ -147,8 +215,14 @@ onBeforeUnmount(() => {
   ctx = null
 })
 
-/** Exposed for future component-replacement work (needs the real GLB with named nodes). */
-defineExpose({ getModelRoot: () => modelRoot, reload: load })
+/** Exposed for the component-replacement / material layers (Phase 3). */
+defineExpose({
+  getModelRoot: () => modelRoot,
+  getMapping: () => mapping,
+  resetView,
+  zoom,
+  reload: load,
+})
 </script>
 
 <template>
@@ -188,20 +262,58 @@ defineExpose({ getModelRoot: () => modelRoot, reload: load })
       </div>
     </div>
 
-    <!-- Placeholder notice -->
-    <div
-      v-if="status === 'placeholder'"
-      class="pointer-events-none absolute right-3 top-3 flex items-center gap-2 rounded-full border border-dashed border-forge/60 bg-white/80 px-3 py-1.5 text-[0.7rem] font-medium text-forge-600 backdrop-blur sm:right-6 sm:top-5"
-    >
-      <span class="h-1.5 w-1.5 rounded-full bg-forge" aria-hidden="true" />
-      Temporary placeholder · road-bike.glb not found
+    <!-- Asset provenance / placeholder notice -->
+    <div class="pointer-events-none absolute right-3 top-3 flex flex-col items-end gap-1.5 sm:right-6 sm:top-5">
+      <div
+        v-if="status === 'placeholder'"
+        class="flex items-center gap-2 rounded-full border border-dashed border-forge/60 bg-white/80 px-3 py-1.5 text-[0.7rem] font-medium text-forge-600 backdrop-blur"
+      >
+        <span class="h-1.5 w-1.5 rounded-full bg-forge" aria-hidden="true" />
+        Temporary placeholder · model file not found
+      </div>
+      <div
+        v-else-if="status === 'ready'"
+        class="rounded-full bg-white/70 px-3 py-1.5 text-[0.68rem] font-medium text-graphite backdrop-blur"
+        :title="assetMap.source.license"
+      >
+        {{ assetMap.source.label }}
+      </div>
+      <div
+        v-if="status === 'ready' && missingComponents.length"
+        class="rounded-full bg-forge-100 px-3 py-1.5 text-[0.68rem] font-medium text-forge-600"
+        :title="missingComponents.join(', ')"
+      >
+        {{ missingComponents.length }} component{{ missingComponents.length > 1 ? 's' : '' }} not in model
+      </div>
     </div>
 
-    <p
+    <!-- View controls -->
+    <div
       v-if="status === 'ready' || status === 'placeholder'"
-      class="pointer-events-none absolute bottom-4 right-4 hidden text-[0.7rem] uppercase tracking-[0.14em] text-graphite-400 sm:block sm:bottom-6 sm:right-6"
+      class="absolute bottom-4 right-4 flex items-center gap-3 sm:bottom-6 sm:right-6"
     >
-      Drag to rotate · Scroll to zoom
-    </p>
+      <p class="pointer-events-none hidden text-[0.7rem] uppercase tracking-[0.14em] text-graphite-400 xl:block">
+        Drag to rotate · Scroll to zoom
+      </p>
+      <div class="flex overflow-hidden rounded-full border border-bone-300 bg-white/80 backdrop-blur">
+        <button type="button" class="viewer-btn" aria-label="Zoom out" title="Zoom out" @click="zoom(1.25)">
+          <svg viewBox="0 0 16 16" class="h-4 w-4" aria-hidden="true"><path d="M3.5 8h9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" /></svg>
+        </button>
+        <button type="button" class="viewer-btn border-x border-bone-300" aria-label="Zoom in" title="Zoom in" @click="zoom(0.8)">
+          <svg viewBox="0 0 16 16" class="h-4 w-4" aria-hidden="true"><path d="M3.5 8h9M8 3.5v9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" /></svg>
+        </button>
+        <button type="button" class="viewer-btn" aria-label="Reset view" title="Reset view" @click="resetView">
+          <svg viewBox="0 0 16 16" class="h-4 w-4" aria-hidden="true">
+            <path d="M2.8 8a5.2 5.2 0 1 0 1.6-3.75M2.8 2.6v2.9h2.9" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </button>
+      </div>
+    </div>
   </div>
 </template>
+
+<style scoped>
+.viewer-btn {
+  @apply grid h-10 w-10 place-items-center text-ink transition-colors duration-200 hover:bg-bone-200 focus:outline-none focus-visible:bg-bone-200;
+}
+</style>

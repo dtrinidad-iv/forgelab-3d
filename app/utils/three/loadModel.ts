@@ -48,7 +48,12 @@ export async function loadModel(
  * Centres the object on the origin with its lowest point on y = 0,
  * then positions the camera so the whole object fits the view.
  */
-export function frameObject(object: Object3D, camera: PerspectiveCamera, controls: OrbitControls) {
+export interface CameraView {
+  position: Vector3
+  target: Vector3
+}
+
+export function frameObject(object: Object3D, camera: PerspectiveCamera, controls: OrbitControls): CameraView {
   const box = new Box3().setFromObject(object)
   const size = box.getSize(new Vector3())
   const center = box.getCenter(new Vector3())
@@ -72,7 +77,8 @@ export function frameObject(object: Object3D, camera: PerspectiveCamera, control
   camera.far = distance * 20
   camera.updateProjectionMatrix()
 
-  controls.minDistance = distance * 0.45
+  controls.minDistance = distance * 0.4
   controls.maxDistance = distance * 2
   controls.update()
+  return { position: camera.position.clone(), target: target.clone() }
 }

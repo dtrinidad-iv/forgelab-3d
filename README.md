@@ -14,6 +14,9 @@ npm install
 npm run dev          # http://localhost:3000
 npm run typecheck
 npm run build && npm run preview
+
+npm run generate:bike                                 # regenerate the 3D assets
+npm run inspect:glb -- public/models/bicycle/road-bike.glb
 ```
 
 ## What it does
@@ -24,8 +27,9 @@ npm run build && npm run preview
 - Live price with per-component breakdown (USD, demo pricing)
 - Configuration saved in a cookie — survives reloads, rendered server-side
 - Reset to defaults
-- Interactive Three.js viewer (orbit + zoom). Shows a labelled procedural placeholder until
-  `public/models/bicycle/road-bike.glb` is provided
+- Interactive Three.js viewer: orbit, zoom, reset view, loading progress, error handling
+- Original procedural road-bike model (generated in code, see `docs/asset-requirements.md`) with
+  named components, mount anchors and an asset-mapping layer that reports missing parts
 
 ## Project layout
 
@@ -36,7 +40,7 @@ See [`CLAUDE.md`](./CLAUDE.md) for structure and project rules.
 | Phase | Scope | Status |
 |---|---|---|
 | 1 | Nuxt app, premium UI, 7-step navigation, mock data, pricing engine | Done |
-| 2 | Licensed GLB, inspection utility, real model in viewer | Next |
-| 3 | Frame material switching, component replacement, pricing tests | Planned |
+| 2 | 3D model (original procedural GLB), inspection utility, asset mapping, viewer | Done |
+| 3 | Frame material switching, component replacement, pricing tests | Next |
 | 4 | Compatibility rules, JSON export, responsive polish | Planned |
 | 5 | Commerce/Shopify architecture + docs, QA, performance, demo prep | Planned |
