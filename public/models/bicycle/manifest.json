@@ -7,6 +7,8 @@
   "driveSide": "+Z",
   "defaults": {
     "frame": "aero-carbon",
+    "size": "m",
+    "groupset": "shimano-demo",
     "wheels": "carbon-climbing",
     "stem": "alloy",
     "handlebar": "carbon-ergo",
@@ -21,40 +23,211 @@
       "kind": "assembly"
     },
     {
-      "file": "/models/bicycle/components/frame-aero-carbon.glb",
+      "file": "/models/bicycle/components/frame-aero-carbon-xs.glb",
+      "bytes": 51952,
+      "meshes": 5,
+      "triangles": 3072,
+      "kind": "component",
+      "slot": "frame",
+      "variant": "aero-carbon@xs"
+    },
+    {
+      "file": "/models/bicycle/components/frame-aero-carbon-s.glb",
+      "bytes": 51908,
+      "meshes": 5,
+      "triangles": 3072,
+      "kind": "component",
+      "slot": "frame",
+      "variant": "aero-carbon@s"
+    },
+    {
+      "file": "/models/bicycle/components/frame-aero-carbon-m.glb",
       "bytes": 51844,
       "meshes": 5,
       "triangles": 3072,
       "kind": "component",
       "slot": "frame",
-      "variant": "aero-carbon"
+      "variant": "aero-carbon@m"
     },
     {
-      "file": "/models/bicycle/components/frame-endurance-carbon.glb",
+      "file": "/models/bicycle/components/frame-aero-carbon-l.glb",
+      "bytes": 51796,
+      "meshes": 5,
+      "triangles": 3072,
+      "kind": "component",
+      "slot": "frame",
+      "variant": "aero-carbon@l"
+    },
+    {
+      "file": "/models/bicycle/components/frame-aero-carbon-xl.glb",
+      "bytes": 51728,
+      "meshes": 5,
+      "triangles": 3072,
+      "kind": "component",
+      "slot": "frame",
+      "variant": "aero-carbon@xl"
+    },
+    {
+      "file": "/models/bicycle/components/frame-endurance-carbon-xs.glb",
+      "bytes": 51792,
+      "meshes": 5,
+      "triangles": 3072,
+      "kind": "component",
+      "slot": "frame",
+      "variant": "endurance-carbon@xs"
+    },
+    {
+      "file": "/models/bicycle/components/frame-endurance-carbon-s.glb",
+      "bytes": 51776,
+      "meshes": 5,
+      "triangles": 3072,
+      "kind": "component",
+      "slot": "frame",
+      "variant": "endurance-carbon@s"
+    },
+    {
+      "file": "/models/bicycle/components/frame-endurance-carbon-m.glb",
+      "bytes": 51724,
+      "meshes": 5,
+      "triangles": 3072,
+      "kind": "component",
+      "slot": "frame",
+      "variant": "endurance-carbon@m"
+    },
+    {
+      "file": "/models/bicycle/components/frame-endurance-carbon-l.glb",
       "bytes": 51720,
       "meshes": 5,
       "triangles": 3072,
       "kind": "component",
       "slot": "frame",
-      "variant": "endurance-carbon"
+      "variant": "endurance-carbon@l"
     },
     {
-      "file": "/models/bicycle/components/frame-titanium.glb",
+      "file": "/models/bicycle/components/frame-endurance-carbon-xl.glb",
+      "bytes": 51676,
+      "meshes": 5,
+      "triangles": 3072,
+      "kind": "component",
+      "slot": "frame",
+      "variant": "endurance-carbon@xl"
+    },
+    {
+      "file": "/models/bicycle/components/frame-titanium-xs.glb",
+      "bytes": 51736,
+      "meshes": 5,
+      "triangles": 3072,
+      "kind": "component",
+      "slot": "frame",
+      "variant": "titanium@xs"
+    },
+    {
+      "file": "/models/bicycle/components/frame-titanium-s.glb",
+      "bytes": 51696,
+      "meshes": 5,
+      "triangles": 3072,
+      "kind": "component",
+      "slot": "frame",
+      "variant": "titanium@s"
+    },
+    {
+      "file": "/models/bicycle/components/frame-titanium-m.glb",
       "bytes": 51620,
       "meshes": 5,
       "triangles": 3072,
       "kind": "component",
       "slot": "frame",
-      "variant": "titanium"
+      "variant": "titanium@m"
     },
     {
-      "file": "/models/bicycle/components/frame-steel.glb",
-      "bytes": 60828,
+      "file": "/models/bicycle/components/frame-titanium-l.glb",
+      "bytes": 51604,
+      "meshes": 5,
+      "triangles": 3072,
+      "kind": "component",
+      "slot": "frame",
+      "variant": "titanium@l"
+    },
+    {
+      "file": "/models/bicycle/components/frame-titanium-xl.glb",
+      "bytes": 51580,
+      "meshes": 5,
+      "triangles": 3072,
+      "kind": "component",
+      "slot": "frame",
+      "variant": "titanium@xl"
+    },
+    {
+      "file": "/models/bicycle/components/frame-steel-xs.glb",
+      "bytes": 60864,
       "meshes": 7,
       "triangles": 3520,
       "kind": "component",
       "slot": "frame",
-      "variant": "steel"
+      "variant": "steel@xs"
+    },
+    {
+      "file": "/models/bicycle/components/frame-steel-s.glb",
+      "bytes": 60776,
+      "meshes": 7,
+      "triangles": 3520,
+      "kind": "component",
+      "slot": "frame",
+      "variant": "steel@s"
+    },
+    {
+      "file": "/models/bicycle/components/frame-steel-m.glb",
+      "bytes": 60832,
+      "meshes": 7,
+      "triangles": 3520,
+      "kind": "component",
+      "slot": "frame",
+      "variant": "steel@m"
+    },
+    {
+      "file": "/models/bicycle/components/frame-steel-l.glb",
+      "bytes": 60724,
+      "meshes": 7,
+      "triangles": 3520,
+      "kind": "component",
+      "slot": "frame",
+      "variant": "steel@l"
+    },
+    {
+      "file": "/models/bicycle/components/frame-steel-xl.glb",
+      "bytes": 60712,
+      "meshes": 7,
+      "triangles": 3520,
+      "kind": "component",
+      "slot": "frame",
+      "variant": "steel@xl"
+    },
+    {
+      "file": "/models/bicycle/components/groupset-shimano-demo.glb",
+      "bytes": 182200,
+      "meshes": 7,
+      "triangles": 14240,
+      "kind": "component",
+      "slot": "groupset",
+      "variant": "shimano-demo"
+    },
+    {
+      "file": "/models/bicycle/components/groupset-sram-demo.glb",
+      "bytes": 182176,
+      "meshes": 7,
+      "triangles": 14240,
+      "kind": "component",
+      "slot": "groupset",
+      "variant": "sram-demo"
+    },
+    {
+      "file": "/models/bicycle/components/groupset-campagnolo-demo.glb",
+      "bytes": 189276,
+      "meshes": 6,
+      "triangles": 14432,
+      "kind": "component",
+      "slot": "groupset",
+      "variant": "campagnolo-demo"
     },
     {
       "file": "/models/bicycle/components/wheels-alloy.glb",

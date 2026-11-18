@@ -117,7 +117,7 @@ describe('ConfiguratorScene (real generated GLBs)', () => {
     const stemPos = worldPos(stem)
     const wheelPos = worldPos(wheel)
 
-    const status = await scene.setVariant('frame', 'endurance-carbon')
+    const status = await scene.setVariant('frame', 'endurance-carbon@m')
 
     expect(status).toEqual({ state: 'applied', kind: 'component' })
     const frame = root.getObjectByName('frame_main')!
@@ -139,17 +139,63 @@ describe('ConfiguratorScene (real generated GLBs)', () => {
   })
 
   it('steel frame brings chrome lugs and an alloy seatpost', async () => {
-    await scene.setVariant('frame', 'steel')
+    await scene.setVariant('frame', 'steel@m')
     expect(materialNames(root.getObjectByName('frame_main')!)).toContain('alloy_silver')
     expect(materialNames(root.getObjectByName('seatpost')!)).toEqual(['alloy_silver'])
   })
 
-  it('reports groups the model cannot show instead of pretending', async () => {
-    for (const group of ['size', 'groupset'] as const) {
-      const status = await scene.setVariant(group, 'anything')
-      expect(status.state).toBe('unsupported')
-      expect(status.message).toBeTruthy()
+  it('size changes real frame geometry: bar and saddle height follow the size', async () => {
+    const saddle = root.getObjectByName('saddle')!
+    const stem = root.getObjectByName('stem')!
+    const wheel = root.getObjectByName('wheel_front')!
+    const m = { saddle: worldPos(saddle), stem: worldPos(stem), wheel: worldPos(wheel) }
+
+    await scene.setVariant('frame', 'aero-carbon@xl')
+    expect(worldPos(saddle).y - m.saddle.y).toBeGreaterThan(0.045) // +55 mm along the seat tube
+    expect(worldPos(stem).y - m.stem.y).toBeGreaterThan(0.04) // +45 mm stack
+    expect(worldPos(wheel).distanceTo(m.wheel)).toBeLessThan(1e-6) // axles are shared hard points
+    expect(await scene.setVariant('size', 'xl')).toMatchObject({ state: 'applied', kind: 'component' })
+
+    await scene.setVariant('frame', 'aero-carbon@xs')
+    expect(worldPos(saddle).y).toBeLessThan(m.saddle.y - 0.045)
+    expect(worldPos(stem).y).toBeLessThan(m.stem.y - 0.035)
+  })
+
+  it('size only claims "shown in 3D" when the frame for that size is mounted', async () => {
+    await scene.setVariant('frame', 'aero-carbon@l')
+    expect((await scene.setVariant('size', 'l')).state).toBe('applied')
+    expect((await scene.setVariant('size', 'xs')).state).toBe('missing-asset')
+  })
+
+  it('groupset swaps the whole drivetrain — the 13-speed demo option has a 13-cog cassette', async () => {
+    const cassette12 = root.getObjectByName('cassette')!
+    const tris = (o: Object3D) => {
+      let n = 0
+      o.traverse((c) => {
+        const g = (c as Mesh).geometry
+        if ((c as Mesh).isMesh) n += (g.index?.count ?? g.attributes.position!.count) / 3
+      })
+      return n
     }
+    const t12 = tris(cassette12)
+
+    expect(await scene.setVariant('groupset', 'campagnolo-demo')).toEqual({ state: 'applied', kind: 'component' })
+    for (const slot of ['crankset', 'cassette', 'chain', 'derailleur_front', 'derailleur_rear']) {
+      expect(root.getObjectByName(slot), slot).toBeTruthy()
+    }
+    const cassette13 = root.getObjectByName('cassette')!
+    expect(cassette13).not.toBe(cassette12)
+    expect(tris(cassette13)).toBeCloseTo((t12 * 13) / 12, 0) // one more cog of the same tessellation
+    expect(materialNames(root.getObjectByName('derailleur_rear')!)).toEqual(['groupset_silver'])
+
+    await scene.setVariant('groupset', 'sram-demo')
+    expect(materialNames(root.getObjectByName('crankset')!)).toContain('groupset_black')
+  })
+
+  it('reports groups the model cannot show instead of pretending', async () => {
+    const noGroupset: ModelAssetMap = { ...MAP, visuals: { ...MAP.visuals, groupset: undefined }, notes: { groupset: 'Not modelled.' } }
+    const s = new ConfiguratorScene(root, noGroupset, loadGlb)
+    expect(await s.setVariant('groupset', 'sram-demo')).toEqual({ state: 'unsupported', message: 'Not modelled.' })
   })
 
   it('reports a missing asset and leaves the model unchanged', async () => {

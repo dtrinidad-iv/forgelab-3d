@@ -16,7 +16,8 @@ npm run inspect:glb -- public/models/bicycle/road-bike.glb --out docs/asset-repo
 | File | Contents |
 |---|---|
 | `road-bike.glb` | Default assembled bike (Aero frame, carbon-climbing wheels, alloy stem, carbon-ergo bar, race saddle) |
-| `components/frame-<id>.glb` | `aero-carbon`, `endurance-carbon`, `titanium`, `steel` — nodes `frame_main` (with mount anchors), `fork`, `seatpost` |
+| `components/frame-<id>-<size>.glb` | 4 frames × sizes `xs`–`xl` — nodes `frame_main` (with mount anchors), `fork`, `seatpost`. Size changes head tube (stack), seat tube and saddle height |
+| `components/groupset-<id>.glb` | `shimano-demo`, `sram-demo`, `campagnolo-demo` (fictional demo drivetrains) — nodes `crankset`, `cassette` (12 or 13 cogs), `chain`, `derailleur_front`, `derailleur_rear` |
 | `components/wheels-<id>.glb` | `alloy`, `carbon-climbing`, `carbon-deep` — nodes `wheel_front`, `wheel_rear` (+ `tire_*`) |
 | `components/handlebar-<id>.glb` | `alloy-compact`, `carbon-ergo`, `carbon-aero` — node `handlebar` (+ `bar_tape`, shifters) |
 | `components/stem-<id>.glb` | `alloy`, `carbon` — node `stem` (+ `anchor_handlebar`) |
@@ -49,9 +50,9 @@ Full hierarchy, materials and per-mesh counts: [`asset-report.md`](./asset-repor
 | Group | 3D behaviour |
 |---|---|
 | Paint | `kind: 'paint'` — one shared `MeshPhysicalMaterial` replaces every `paint_frame` material; colour, roughness, metalness and clearcoat animate. |
-| Frame, wheels, handlebar, stem, saddle | `kind: 'component'` — variant GLB loaded once, slot node cloned and mounted in place (local transform preserved); detached parts are cached for instant re-selection; parts on anchors inside a replaced node move to the new node's anchor. |
+| Frame (+ size via `compose`: `frame@size`), groupset, wheels, handlebar, stem, saddle | `kind: 'component'` — variant GLB loaded once, slot node cloned and mounted in place (local transform preserved); detached parts are cached for instant re-selection; parts on anchors inside a replaced node move to the new node's anchor. |
 | Bar tape | `kind: 'material'` — shared tape material recoloured. |
-| Size, groupset | Not visualised; `notes` text is shown next to the options. |
+| Size | `kind: 'derived'` from frame — reported as shown only when the frame for that size is mounted. |
 
 `bakedVariants` records which options the base `road-bike.glb` already shows. Results come back
 from `ConfiguratorScene` per group (`applied` / `loading` / `unsupported` / `missing-asset` / `error`)

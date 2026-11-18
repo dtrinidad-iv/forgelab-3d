@@ -25,6 +25,9 @@ export const MATERIALS = {
   alloySilver: standard('alloy_silver', 0xb9bdc3, 0.32, 1),
   alloyDark: standard('alloy_dark', 0x3a3d42, 0.38, 0.9),
   groupset: standard('groupset_metal', 0x2a2c30, 0.32, 0.85),
+  /** Demo groupset finishes (ForgeLab design, not imitations of real brands). */
+  groupsetBlack: standard('groupset_black', 0x121315, 0.46, 0.6),
+  groupsetSilver: standard('groupset_silver', 0xc9ccd1, 0.22, 1),
   chain: standard('chain_steel', 0x8e9298, 0.42, 1),
   tyre: standard('rubber_tyre', 0x161618, 0.88, 0),
   hood: standard('rubber_hood', 0x1e1f22, 0.72, 0),

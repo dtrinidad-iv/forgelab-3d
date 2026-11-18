@@ -6,8 +6,9 @@ Seven steps: **Frame → Size → Paint → Groupset → Wheels → Cockpit → 
 
 - Size starts empty (rider-specific) — you can't continue or skip ahead without it.
 - Completed steps show a check; steps with a compatibility error show a red dot.
-- Each option group says whether it is **shown in 3D**: frame, paint, wheels, handlebar, stem,
-  saddle and bar tape change the model; size and groupset do not (stated next to the options).
+- Each option group says how it is **shown in 3D**. Every group changes the model: frame and size
+  (frame geometry, bar and saddle height), paint, groupset (whole drivetrain), wheels, handlebar,
+  stem, saddle and bar tape.
 - Incompatible options are labelled on their cards; picking one shows a banner with one-click fixes.
 - Layout: on desktop the bike fills the left side and the steps get the right column (stepper with
   progress, options, pinned footer with total + Previous/Next). On phones the bike shrinks while you
@@ -35,17 +36,20 @@ Run `npm test` and `npm run typecheck` after any change.
    Drag to rotate, zoom in on the drivetrain, press ↺.
 2. **Frame** — switch Aero → Endurance → Steel → back to **Aero**. Point out the taller head tube and
    higher bars on Endurance, the level top tube and chrome lugs on Steel; wheels/stem/saddle stay mounted.
-3. **Size** — press Next without choosing: required-selection validation. Pick M.
+3. **Size** — press Next without choosing: required-selection validation. Pick XS then XL: the frame,
+   bar height and saddle height change. Pick M.
 4. **Paint** — Racing Red, then Custom Colour → pick a blue, switch Matte/Gloss/Metallic: live PBR
    changes, no reload. Note the price change (+$300).
-5. **Wheels** — Carbon Deep-Section: real geometry swap ("Updating wheels…").
+5. **Groupset** — switch the three demo options: drivetrain finish changes; the 13-speed option
+   has a 13-cog cassette.
+6. **Wheels** — Carbon Deep-Section: real geometry swap ("Updating wheels…").
    Point at the Alloy card: "Not compatible with your Aero Carbon frame".
-6. **Cockpit** — choose Carbon Aero bar → incompatibility banner → "Switch stem to Carbon": the stem
+7. **Cockpit** — choose Carbon Aero bar → incompatibility banner → "Switch stem to Carbon": the stem
    swaps and the bar moves onto it. Tan leather tape; Comfort saddle → advisory recommendation.
-7. **Review** — all-compatible status, auto-matched bottom bracket, Download JSON.
-8. **Add to cart** — server validates and prices the build (SKUs, custom paint as line attributes),
+8. **Review** — all-compatible status, auto-matched bottom bracket, Download JSON.
+9. **Add to cart** — server validates and prices the build (SKUs, custom paint as line attributes),
    "Continue to checkout" explains the Shopify hand-off. Mention tampered requests are rejected.
-9. **Reload** the page — the whole build (including 3D parts) comes back.
+10. **Reload** the page — the whole build (including 3D parts) comes back.
 
 Talking points: original brand/assets; honest 3D labels; server-side pricing; Shopify-ready
-interfaces; 46 automated tests incl. swap tests against the real model files.
+interfaces; 53 automated tests incl. swap tests against the real model files.

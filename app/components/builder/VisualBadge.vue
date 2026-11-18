@@ -17,7 +17,7 @@ const view = computed(() => {
     case 'loading':
       return { tone: 'muted', icon: 'spin', text: 'Loading 3D part…' }
     case 'applied':
-      if (s.kind === 'component') return { tone: 'ok', icon: 'cube', text: 'Shown in 3D · real part swap' }
+      if (s.kind === 'component') return { tone: 'ok', icon: 'cube', text: `Shown in 3D · ${s.message ?? 'real part swap'}` }
       if (s.kind === 'paint') return { tone: 'ok', icon: 'cube', text: s.message ?? 'Shown in 3D' }
       return { tone: 'ok', icon: 'cube', text: 'Shown in 3D' }
     case 'unsupported':

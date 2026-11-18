@@ -8,7 +8,7 @@
  *   public/models/bicycle/components/<slot>-<id>.glb  swappable component variants
  *   public/models/bicycle/manifest.json               what was generated
  */
-import { mkdir, writeFile } from 'node:fs/promises'
+import { mkdir, rm, writeFile } from 'node:fs/promises'
 import { dirname, join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { Group, type Object3D } from 'three'
@@ -18,8 +18,8 @@ import { ALL_EXTENSIONS } from '@gltf-transform/extensions'
 import { meshopt } from '@gltf-transform/functions'
 import { MeshoptDecoder, MeshoptEncoder } from 'meshoptimizer'
 import { buildHandlebar, buildStem, HANDLEBARS, STEMS } from './cockpit'
-import { buildBrakes, buildCassette, buildChain, buildCrankset, buildFrontDerailleur, buildRearDerailleur } from './drivetrain'
-import { buildFork, buildFrame, buildFrameset, buildSeatpost, FRAMES } from './frame'
+import { buildBrakes, buildGroupset, GROUPSETS } from './drivetrain'
+import { buildFork, buildFrame, buildFrameset, buildSeatpost, FRAMES, SIZE_M, SIZES } from './frame'
 import { buildSaddle, SADDLES } from './saddle'
 import { buildWheelset, WHEELSETS } from './wheels'
 
@@ -46,7 +46,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '../..')
 const OUT = join(ROOT, 'public/models/bicycle')
 const COPYRIGHT = 'ForgeLab 3D — original procedural asset (scripts/bike). Not derived from third-party models.'
 
-const DEFAULTS = { frame: 'aero-carbon', wheels: 'carbon-climbing', stem: 'alloy', handlebar: 'carbon-ergo', saddle: 'race-carbon' }
+const DEFAULTS = { frame: 'aero-carbon', size: 'm', groupset: 'shimano-demo', wheels: 'carbon-climbing', stem: 'alloy', handlebar: 'carbon-ergo', saddle: 'race-carbon' }
 
 const find = <T extends { id: string }>(list: T[], id: string) => {
   const item = list.find((x) => x.id === id)
@@ -59,9 +59,9 @@ function buildBike(): Group {
   bike.name = 'forgelab_road_bike'
 
   const frameSpec = find(FRAMES, DEFAULTS.frame)
-  const frame = buildFrame(frameSpec)
-  bike.add(frame, buildFork(frameSpec), buildSeatpost(frameSpec))
-  bike.add(buildCrankset(), buildCassette(), buildChain(), buildFrontDerailleur(), buildRearDerailleur(), ...buildBrakes())
+  const frame = buildFrame(frameSpec, SIZE_M)
+  bike.add(frame, buildFork(frameSpec, SIZE_M), buildSeatpost(frameSpec, SIZE_M))
+  bike.add(...buildGroupset(find(GROUPSETS, DEFAULTS.groupset)).children.slice(), ...buildBrakes())
 
   // Mounted parts hang off the frame's anchors, so swapping the frame carries them along.
   const mount = (anchorName: string, part: Object3D) => frame.getObjectByName(`anchor_${anchorName}`)!.add(part)
@@ -126,9 +126,14 @@ async function main() {
   }
 
   console.log('ForgeLab bike generator')
+  // Start clean so renamed/removed variants never linger in public/.
+  await rm(join(OUT, 'components'), { recursive: true, force: true })
   await write(buildBike(), 'road-bike.glb', { kind: 'assembly' })
 
-  for (const spec of FRAMES) await write(buildFrameset(spec), `components/frame-${spec.id}.glb`, { kind: 'component', slot: 'frame', variant: spec.id })
+  for (const spec of FRAMES) {
+    for (const size of SIZES) await write(buildFrameset(spec, size), `components/frame-${spec.id}-${size.id}.glb`, { kind: 'component', slot: 'frame', variant: `${spec.id}@${size.id}` })
+  }
+  for (const spec of GROUPSETS) await write(buildGroupset(spec), `components/groupset-${spec.id}.glb`, { kind: 'component', slot: 'groupset', variant: spec.id })
   for (const spec of WHEELSETS) await write(buildWheelset(spec), `components/wheels-${spec.id}.glb`, { kind: 'component', slot: 'wheels', variant: spec.id })
   for (const spec of HANDLEBARS) await write(wrap(buildHandlebar(spec), `handlebar_${spec.id}`), `components/handlebar-${spec.id}.glb`, { kind: 'component', slot: 'handlebar', variant: spec.id })
   for (const spec of STEMS) await write(wrap(buildStem(spec), `stem_${spec.id}`), `components/stem-${spec.id}.glb`, { kind: 'component', slot: 'stem', variant: spec.id })

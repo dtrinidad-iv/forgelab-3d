@@ -16,7 +16,8 @@ than that saving on a first visit, needs extra hosted files and decodes slower. 
 in Node, so the swap-engine tests run against the real compressed files.
 **KTX2** is not applicable — the models have no textures.
 
-Result: all assets **8.5 MB → 2.1 MB** (base bike 627 KB; frames ~50–60 KB; wheelsets ~150 KB;
+Result: base bike **2.5 MB → 627 KB**; every variant is loaded only when chosen (frames ~50–60 KB × 20 frame/size
+combinations; groupsets ~180 KB; wheelsets ~150 KB;
 handlebars ~130 KB; saddles 110–180 KB; stems ~10 KB). Compression runs inside
 `npm run generate:bike` (`NO_COMPRESS=1` to disable).
 

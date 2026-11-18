@@ -135,6 +135,16 @@ export class ConfiguratorScene {
   async setVariant(group: GroupId, optionId: string | null): Promise<VisualStatus> {
     const visual = this.map.visuals[group]
     if (!visual || visual.kind === 'paint') return this.unsupported(group)
+
+    if (visual.kind === 'derived') {
+      // Only claim it if the source group's mounted variant really is the one for this option.
+      const shown = this.shown.get(visual.from) ?? ''
+      const key = optionId ?? 'm'
+      return shown.endsWith(`@${key}`)
+        ? { state: 'applied', kind: 'component', message: visual.note }
+        : { state: 'missing-asset', kind: 'component', message: `The ${visual.from} for this ${group} is not shown.` }
+    }
+
     if (!optionId) return { state: 'applied', kind: visual.kind }
 
     if (visual.kind === 'material') {

@@ -13,13 +13,12 @@ import { Group, type Material, Object3D, SphereGeometry, type BufferGeometry, Ve
 import { deg, part, profileTube, v } from './geometry'
 import { MATERIALS } from './materials'
 
-/** Hard points shared by every frame variant (size M). */
+/** Hard points shared by every frame variant and size. */
 export const GEO = (() => {
   const bb = v(0, 0.27)
   const headDown = v(Math.cos(deg(73)), -Math.sin(deg(73)))
   const seatDir = v(-Math.cos(deg(73.5)), Math.sin(deg(73.5)))
   const headBottom = v(0.385, 0.825).addScaledVector(headDown, 0.15)
-  const postTop = bb.clone().addScaledVector(seatDir, 0.67)
   return {
     bb,
     rearAxle: v(-0.405, 0.34),
@@ -28,10 +27,29 @@ export const GEO = (() => {
     steerUp: headDown.clone().negate(),
     seatDir,
     headBottom,
-    postTop,
-    saddleMount: postTop.clone().add(v(0, 0.012)),
   }
 })()
+
+/**
+ * Size deltas relative to M (metres). Stack moves the head-tube top (bar height); seat changes the
+ * seat-tube length / top-tube slope; saddle moves the saddle along the seat-tube axis.
+ */
+export interface SizeSpec {
+  id: 'xs' | 's' | 'm' | 'l' | 'xl'
+  stack: number
+  seat: number
+  saddle: number
+}
+
+export const SIZES: SizeSpec[] = [
+  { id: 'xs', stack: -0.04, seat: -0.06, saddle: -0.055 },
+  { id: 's', stack: -0.02, seat: -0.03, saddle: -0.028 },
+  { id: 'm', stack: 0, seat: 0, saddle: 0 },
+  { id: 'l', stack: 0.022, seat: 0.03, saddle: 0.028 },
+  { id: 'xl', stack: 0.045, seat: 0.06, saddle: 0.055 },
+]
+
+export const SIZE_M = SIZES.find((x) => x.id === 'm')!
 
 type Profile = [width: number, depth: number, taper?: number]
 
@@ -97,15 +115,22 @@ export const FRAMES: FrameSpec[] = [
 const z = (p: Vector3, zz: number) => p.clone().setZ(zz)
 const tube = (a: Vector3, b: Vector3, [w, d, taper]: Profile) => profileTube(a, b, w, d, { taper })
 
-/** Variant-specific points. */
-export function frameGeometry(spec: FrameSpec) {
-  const headTop = GEO.headBottom.clone().addScaledVector(GEO.steerUp, spec.headTube)
-  const seatTop = GEO.bb.clone().addScaledVector(GEO.seatDir, spec.seatTube)
+/** Variant- and size-specific points. */
+export function frameGeometry(spec: FrameSpec, size: SizeSpec = SIZE_M) {
+  // Moving up the steering axis by d raises the stack by d·sin(73°).
+  const headTube = spec.headTube + size.stack / Math.sin(deg(73))
+  const seatTube = spec.seatTube + size.seat
+  const headTop = GEO.headBottom.clone().addScaledVector(GEO.steerUp, headTube)
+  const seatTop = GEO.bb.clone().addScaledVector(GEO.seatDir, seatTube)
+  const postTop = GEO.bb.clone().addScaledVector(GEO.seatDir, 0.67 + size.saddle)
   return {
     headTop,
     seatTop,
+    postTop,
+    stayJunction: Math.min(spec.stayJunction + size.seat, seatTube - 0.02),
     /** Top of the headset cover — the stem's mounting point. */
     stemMount: headTop.clone().addScaledVector(GEO.steerUp, 0.012),
+    saddleMount: postTop.clone().add(v(0, 0.012)),
   }
 }
 
@@ -117,9 +142,9 @@ export function anchor(name: string, position: Vector3): Object3D {
   return o
 }
 
-export function buildFrame(spec: FrameSpec): Group {
-  const { bb, rearAxle, frontAxle, headDown, steerUp, seatDir, headBottom, saddleMount } = GEO
-  const { headTop, seatTop, stemMount } = frameGeometry(spec)
+export function buildFrame(spec: FrameSpec, size: SizeSpec = SIZE_M): Group {
+  const { bb, rearAxle, frontAxle, headDown, steerUp, seatDir, headBottom } = GEO
+  const { headTop, seatTop, stemMount, saddleMount, stayJunction } = frameGeometry(spec, size)
   const t = spec.tubes
   const paint: BufferGeometry[] = []
   const chrome: BufferGeometry[] = []
@@ -136,7 +161,7 @@ export function buildFrame(spec: FrameSpec): Group {
   paint.push(cluster)
 
   // Rear triangle
-  const junction = bb.clone().addScaledVector(seatDir, spec.stayJunction)
+  const junction = bb.clone().addScaledVector(seatDir, stayJunction)
   for (const s of [-1, 1]) {
     paint.push(tube(z(bb, 0.036 * s), z(rearAxle, 0.062 * s), t.chainstay))
     paint.push(tube(z(junction, 0.016 * s), z(rearAxle, 0.062 * s), t.seatstay))
@@ -161,9 +186,9 @@ export function buildFrame(spec: FrameSpec): Group {
   return frame
 }
 
-export function buildFork(spec: FrameSpec): Group {
+export function buildFork(spec: FrameSpec, size: SizeSpec = SIZE_M): Group {
   const { frontAxle, headDown, headBottom, steerUp } = GEO
-  const { headTop } = frameGeometry(spec)
+  const { headTop } = frameGeometry(spec, size)
   const crown = headBottom.clone().addScaledVector(headDown, 0.012)
   const paint = [profileTube(headTop, headTop.clone().addScaledVector(steerUp, 0.012), 0.05, 0.05)] // headset cover
   for (const s of [-1, 1]) {
@@ -179,9 +204,9 @@ export function buildFork(spec: FrameSpec): Group {
   ])
 }
 
-export function buildSeatpost(spec: FrameSpec): Group {
-  const { seatDir, postTop } = GEO
-  const { seatTop } = frameGeometry(spec)
+export function buildSeatpost(spec: FrameSpec, size: SizeSpec = SIZE_M): Group {
+  const { seatDir } = GEO
+  const { seatTop, postTop } = frameGeometry(spec, size)
   const [w, d] = spec.seatpost.profile
   const post = profileTube(seatTop.clone().addScaledVector(seatDir, -0.03), postTop, w, d)
   const head = profileTube(z(postTop, -0.016), z(postTop, 0.016), 0.05, 0.02)
@@ -189,9 +214,9 @@ export function buildSeatpost(spec: FrameSpec): Group {
 }
 
 /** Frame + fork + seatpost as one swappable set (root children named after their slots). */
-export function buildFrameset(spec: FrameSpec): Group {
+export function buildFrameset(spec: FrameSpec, size: SizeSpec = SIZE_M): Group {
   const g = new Group()
-  g.name = `frameset_${spec.id}`
-  g.add(buildFrame(spec), buildFork(spec), buildSeatpost(spec))
+  g.name = `frameset_${spec.id}_${size.id}`
+  g.add(buildFrame(spec, size), buildFork(spec, size), buildSeatpost(spec, size))
   return g
 }

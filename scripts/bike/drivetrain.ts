@@ -1,10 +1,32 @@
 /**
- * Crankset, cassette, chain, derailleurs and brake calipers (drive side = +Z).
+ * Groupsets (crankset, cassette, chain, derailleurs) and brake calipers (drive side = +Z).
+ *
+ * The three groupsets are FICTIONAL ForgeLab demo drivetrains matching the demo specs in the
+ * catalog (2×12 / 2×12 / 2×13). Their finishes are ForgeLab design choices — they deliberately do
+ * not imitate any real manufacturer's look.
  */
-import { ExtrudeGeometry, Group, Path, Shape, Vector3 } from 'three'
+import { ExtrudeGeometry, Group, type Material, Path, Shape, Vector3 } from 'three'
 import { GEO } from './frame'
 import { arc, between, deg, part, profileTube, tubeAlong, v } from './geometry'
 import { MATERIALS } from './materials'
+
+export interface GroupsetSpec {
+  id: string
+  /** Cog tooth counts, smallest first. Must include a 17T cog (the chain sits on it). */
+  cogs: number[]
+  /** Rings, cage, derailleur bodies. */
+  finish: Material
+  crankArms: Material
+  cassette: Material
+  /** Rear derailleur cage length (pulley-to-pulley), m. */
+  cage: number
+}
+
+export const GROUPSETS: GroupsetSpec[] = [
+  { id: 'shimano-demo', cogs: [11, 12, 13, 14, 15, 17, 19, 21, 24, 27, 30, 34], finish: MATERIALS.groupset, crankArms: MATERIALS.carbonMatte, cassette: MATERIALS.alloySilver, cage: 0.072 },
+  { id: 'sram-demo', cogs: [10, 11, 12, 13, 14, 15, 17, 19, 21, 24, 28, 33], finish: MATERIALS.groupsetBlack, crankArms: MATERIALS.carbonGloss, cassette: MATERIALS.groupsetBlack, cage: 0.08 },
+  { id: 'campagnolo-demo', cogs: [11, 12, 13, 14, 15, 16, 17, 19, 21, 23, 26, 29, 32], finish: MATERIALS.groupsetSilver, crankArms: MATERIALS.groupsetSilver, cassette: MATERIALS.alloySilver, cage: 0.066 },
+]
 
 const CHAINLINE = 0.046
 const pitchRadius = (teeth: number) => (0.0127 / 2) / Math.sin(Math.PI / teeth)
@@ -24,7 +46,7 @@ function chainring(teeth: number, z: number) {
   return g
 }
 
-export function buildCrankset(): Group {
+export function buildCrankset(spec: GroupsetSpec): Group {
   const { bb } = GEO
   const rings = [chainring(52, CHAINLINE + 0.002), chainring(36, CHAINLINE - 0.006)]
   const spider = [0, 1, 2, 3].map((k) => {
@@ -53,38 +75,41 @@ export function buildCrankset(): Group {
     ]
   })
   return part('crankset', [
-    [MATERIALS.groupset, [...rings, ...spider]],
-    [MATERIALS.carbonMatte, arms],
+    [spec.finish, [...rings, ...spider]],
+    [spec.crankArms, arms],
     [MATERIALS.alloyDark, pedals],
   ])
 }
 
-const COGS = [11, 12, 13, 14, 15, 17, 19, 21, 24, 27, 30, 34]
-const cogZ = (i: number) => 0.0605 - i * 0.0035
-const CHAIN_COG = 5 // 17T
+/** Cogs span the same 38.5 mm of freehub whatever their count (13 cogs sit closer together). */
+const cogZ = (i: number, count: number) => 0.0605 - i * (0.0385 / (count - 1))
+const CHAIN_TEETH = 17
 
-export function buildCassette(): Group {
+export function buildCassette(spec: GroupsetSpec): Group {
   const { rearAxle } = GEO
-  const cogs = COGS.map((teeth, i) => {
+  const width = spec.cogs.length > 12 ? 0.0015 : 0.0018
+  const cogs = spec.cogs.map((teeth, i) => {
     const r = pitchRadius(teeth) + 0.002
-    return profileTube(rearAxle.clone().setZ(cogZ(i) - 0.0009), rearAxle.clone().setZ(cogZ(i) + 0.0009), r * 2, r * 2, { radialSegments: 48 })
+    const z = cogZ(i, spec.cogs.length)
+    return profileTube(rearAxle.clone().setZ(z - width / 2), rearAxle.clone().setZ(z + width / 2), r * 2, r * 2, { radialSegments: 48 })
   })
-  return part('cassette', [[MATERIALS.alloySilver, cogs]])
+  return part('cassette', [[spec.cassette, cogs]])
 }
 
 const PULLEY_R = 0.017
-function pulleyCentres() {
+function pulleyCentres(spec: GroupsetSpec) {
   const { rearAxle } = GEO
-  const cogR = pitchRadius(COGS[CHAIN_COG]!)
+  const cogR = pitchRadius(CHAIN_TEETH)
   const upper = v(rearAxle.x - PULLEY_R + 0.002, rearAxle.y - cogR - 0.03)
-  const lower = v(upper.x + 0.022, upper.y - 0.072)
+  const lower = v(upper.x + 0.022 * (spec.cage / 0.072), upper.y - spec.cage)
   return { upper, lower, cogR }
 }
 
-export function buildChain(): Group {
+export function buildChain(spec: GroupsetSpec): Group {
+  if (!spec.cogs.includes(CHAIN_TEETH)) throw new Error(`${spec.id}: cassette needs a ${CHAIN_TEETH}T cog`)
   const { bb, rearAxle } = GEO
   const ringR = pitchRadius(52)
-  const { upper, lower, cogR } = pulleyCentres()
+  const { upper, lower, cogR } = pulleyCentres(spec)
   const z = CHAINLINE + 0.003
   const ringTop = v(bb.x, bb.y + ringR, z)
   const cogTop = v(rearAxle.x, rearAxle.y + cogR, z)
@@ -104,25 +129,33 @@ export function buildChain(): Group {
   return part('chain', [[MATERIALS.chain, [chain]]])
 }
 
-export function buildRearDerailleur(): Group {
+export function buildRearDerailleur(spec: GroupsetSpec): Group {
   const { rearAxle } = GEO
-  const { upper, lower } = pulleyCentres()
+  const { upper, lower } = pulleyCentres(spec)
   const geos = [
     ...[upper, lower].map((c) => profileTube(c.clone().setZ(CHAINLINE - 0.004), c.clone().setZ(CHAINLINE + 0.01), PULLEY_R * 2, PULLEY_R * 2, { radialSegments: 24 })),
     profileTube(upper.clone().setZ(CHAINLINE + 0.013), lower.clone().setZ(CHAINLINE + 0.013), 0.004, 0.034), // outer cage plate
     profileTube(upper.clone().add(v(0, 0.01, CHAINLINE + 0.016)), rearAxle.clone().add(v(0.006, -0.012, 0.072)), 0.022, 0.03), // body
     profileTube(rearAxle.clone().add(v(0.006, -0.012, 0.064)), rearAxle.clone().add(v(0.006, -0.012, 0.08)), 0.03, 0.03), // knuckle
   ]
-  return part('derailleur_rear', [[MATERIALS.groupset, geos]])
+  return part('derailleur_rear', [[spec.finish, geos]])
 }
 
-export function buildFrontDerailleur(): Group {
+export function buildFrontDerailleur(spec: GroupsetSpec): Group {
   const p = GEO.bb.clone().addScaledVector(GEO.seatDir, 0.165)
   const geos = [
     profileTube(p.clone().setZ(0.016), p.clone().setZ(0.05), 0.022, 0.024), // mount
     profileTube(p.clone().add(v(-0.03, -0.004, 0.056)), p.clone().add(v(0.045, -0.026, 0.056)), 0.004, 0.024), // cage
   ]
-  return part('derailleur_front', [[MATERIALS.groupset, geos]])
+  return part('derailleur_front', [[spec.finish, geos]])
+}
+
+/** All drivetrain parts of one groupset (root children named after their slots). */
+export function buildGroupset(spec: GroupsetSpec): Group {
+  const g = new Group()
+  g.name = `groupset_${spec.id}`
+  g.add(buildCrankset(spec), buildCassette(spec), buildChain(spec), buildFrontDerailleur(spec), buildRearDerailleur(spec))
+  return g
 }
 
 function caliper(name: string, centre: Vector3) {

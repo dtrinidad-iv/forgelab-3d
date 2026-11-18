@@ -35,9 +35,13 @@ export type GroupVisual =
       kind: 'component'
       /** Component slots replaced together (e.g. both wheels). Each slot is a node name in the variant file. */
       slots: ComponentId[]
-      /** Catalog option id → component GLB containing nodes named after `slots`. */
+      /** Variant key → component GLB containing nodes named after `slots`. */
       variants: Record<string, string>
+      /** Builds the variant key from the selections when it depends on more than one group (frame@size). */
+      compose?: (selections: Partial<Record<GroupId, string | null>>) => string | null
     }
+  /** Shown through another group's variant (size → the frame for that size). Honest only if that variant is mounted. */
+  | { kind: 'derived'; from: GroupId; note: string }
   | { kind: 'material'; target: 'barTape'; variants: Record<string, { color: string; roughness: number; metalness?: number }> }
 
 export interface ModelAssetMap {
@@ -58,6 +62,8 @@ export interface ModelAssetMap {
 }
 
 const C = '/models/bicycle/components'
+const FRAME_IDS = ['aero-carbon', 'endurance-carbon', 'titanium', 'steel']
+const SIZE_IDS = ['xs', 's', 'm', 'l', 'xl']
 
 const identity = Object.fromEntries(COMPONENT_IDS.map((id) => [id, [id]])) as Record<ComponentId, string[]>
 
@@ -77,11 +83,19 @@ export const FORGELAB_ROAD_BIKE: ModelAssetMap = {
       kind: 'component',
       // frame_main first: it hosts the wheel/stem/saddle anchors, so mounted parts move with it.
       slots: ['frame_main', 'fork', 'seatpost'],
+      // One frameset per frame type AND size (head tube, seat tube and saddle height change with size).
+      variants: Object.fromEntries(FRAME_IDS.flatMap((f) => SIZE_IDS.map((sz) => [`${f}@${sz}`, `${C}/frame-${f}-${sz}.glb`]))),
+      // Until a size is chosen the bike is shown in M.
+      compose: (s) => (s.frame ? `${s.frame}@${s.size ?? 'm'}` : null),
+    },
+    size: { kind: 'derived', from: 'frame', note: 'Frame geometry, bar height and saddle height change with size' },
+    groupset: {
+      kind: 'component',
+      slots: ['crankset', 'cassette', 'chain', 'derailleur_front', 'derailleur_rear'],
       variants: {
-        'aero-carbon': `${C}/frame-aero-carbon.glb`,
-        'endurance-carbon': `${C}/frame-endurance-carbon.glb`,
-        titanium: `${C}/frame-titanium.glb`,
-        steel: `${C}/frame-steel.glb`,
+        'shimano-demo': `${C}/groupset-shimano-demo.glb`,
+        'sram-demo': `${C}/groupset-sram-demo.glb`,
+        'campagnolo-demo': `${C}/groupset-campagnolo-demo.glb`,
       },
     },
     wheels: {
@@ -114,9 +128,14 @@ export const FORGELAB_ROAD_BIKE: ModelAssetMap = {
       },
     },
   },
-  bakedVariants: { frame: 'aero-carbon', wheels: 'carbon-climbing', handlebar: 'carbon-ergo', stem: 'alloy-stem', saddle: 'saddle-race', barTape: 'tape-black' },
+  bakedVariants: { frame: 'aero-carbon@m', groupset: 'shimano-demo', wheels: 'carbon-climbing', handlebar: 'carbon-ergo', stem: 'alloy-stem', saddle: 'saddle-race', barTape: 'tape-black' },
   notes: {
-    size: 'The model is shown in size M.',
-    groupset: 'Groupset differences are not visualised in 3D.',
   },
+}
+
+/** The variant key the 3D model should show for a group, given the current selections. */
+export function visualOptionFor(map: ModelAssetMap, group: GroupId, selections: Partial<Record<GroupId, string | null>>): string | null {
+  const visual = map.visuals[group]
+  if (visual?.kind === 'component' && visual.compose) return visual.compose(selections)
+  return selections[group] ?? null
 }

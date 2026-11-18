@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { FORGELAB_ROAD_BIKE, visualOptionFor } from '~/config/assetMap'
 import { GROUP_IDS } from '~/config/catalog'
 import type { VisualTarget } from '~/utils/three/configuratorScene'
 
@@ -18,7 +19,7 @@ const paintLabel = computed(() => {
 /** What the 3D viewer should show — paint + every group's selection. */
 const visualTarget = computed<VisualTarget>(() => ({
   paint: paint.value,
-  variants: Object.fromEntries(GROUP_IDS.filter((g) => g !== 'paint').map((g) => [g, selections.value[g]])),
+  variants: Object.fromEntries(GROUP_IDS.filter((g) => g !== 'paint').map((g) => [g, visualOptionFor(FORGELAB_ROAD_BIKE, g, selections.value)])),
 }))
 
 // New step → bring its title back into view under the sticky viewer.

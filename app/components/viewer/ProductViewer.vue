@@ -172,16 +172,35 @@ function applyTarget(next: VisualTarget | undefined, animate = true): Promise<un
   if (!prev || JSON.stringify(prev.paint) !== JSON.stringify(next.paint)) {
     setGroupStatus('paint', scene.applyPaint(next.paint, animate))
   }
+  const jobByGroup = new Map<GroupId, Promise<unknown>>()
+  const derived: GroupId[] = []
   for (const group of Object.keys(next.variants) as GroupId[]) {
     const option = next.variants[group] ?? null
-    if (prev && (prev.variants[group] ?? null) === option && statuses.value[group]) continue
     const visual = props.assetMap.visuals[group]
+    if (visual?.kind === 'derived') {
+      derived.push(group)
+      continue
+    }
+    if (prev && (prev.variants[group] ?? null) === option && statuses.value[group]) continue
     if (visual?.kind === 'component' && option && scene.shownVariant(group) !== option) {
       setGroupStatus(group, { state: 'loading', kind: 'component' })
     }
+    const job = scene.setVariant(group, option).then((result) => {
+      // Ignore results for selections the customer has already changed again.
+      if (configurator === scene && (appliedTarget?.variants[group] ?? null) === option) setGroupStatus(group, result)
+    })
+    jobByGroup.set(group, job)
+    jobs.push(job)
+  }
+  // Derived groups (size) report only after their source group (frame) has actually been mounted.
+  for (const group of derived) {
+    const visual = props.assetMap.visuals[group]
+    if (visual?.kind !== 'derived') continue
+    const option = next.variants[group] ?? null
+    if (jobByGroup.has(visual.from)) setGroupStatus(group, { state: 'loading', kind: 'component' })
     jobs.push(
-      scene.setVariant(group, option).then((result) => {
-        // Ignore results for selections the customer has already changed again.
+      (jobByGroup.get(visual.from) ?? Promise.resolve()).then(async () => {
+        const result = await scene.setVariant(group, option)
         if (configurator === scene && (appliedTarget?.variants[group] ?? null) === option) setGroupStatus(group, result)
       }),
     )
