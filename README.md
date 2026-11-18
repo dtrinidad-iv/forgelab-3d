@@ -131,6 +131,8 @@ Shopify store.
   back to the configurator; if a checkout is still open, a one-time banner resumes it.
 - No Shopify SDK: one typed `fetch`, so the bundle doesn't grow.
 
+<p align="center"><img src="docs/screenshots/review-live-prices.jpg" alt="Review step: total and prices live from Shopify" width="720"><br><sub>Prices and stock come live from the Shopify store: change them in Shopify admin and the configurator follows within a minute.</sub></p>
+
 ## Studio admin: one-of-a-kind pieces
 
 For products where every piece is unique (a hide, a burl, a hand-finished part), the studio
