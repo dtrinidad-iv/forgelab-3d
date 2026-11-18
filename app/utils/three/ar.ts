@@ -3,9 +3,10 @@
  *
  *  - iOS:     AR Quick Look. The live model is exported to USDZ in the browser (metres, Y-up,
  *             horizontal-plane anchoring) and opened via <a rel="ar">.
- *  - Android: Google Scene Viewer (part of the Google app). It needs a public URL to a GLB, so the
- *             server assembles the exact build on demand (/api/ar/model.glb?c=…). `resizable=false`
- *             keeps it at real size.
+ *  - Android: live WebXR AR first (worked on e.g. Galaxy S24 Ultra); where it can't start (it failed
+ *             silently on another Galaxy), Google Scene Viewer is offered — it needs a public URL to a
+ *             GLB, so the server assembles the exact build on demand (/api/ar/model.glb?c=…).
+ *             `resizable=false` keeps Scene Viewer at real size.
  *
  * Limits: procedural shader finishes (Forged Pattern) are not part of USDZ/glTF materials, so AR
  * shows their base colour. Device behaviour must be verified on real phones.
@@ -19,6 +20,17 @@ export function supportsQuickLook(): boolean {
   if (typeof document === 'undefined') return false
   const a = document.createElement('a')
   return Boolean(a.relList?.supports?.('ar'))
+}
+
+/** True when the browser reports it can start a WebXR AR session (Chrome + ARCore). */
+export async function supportsWebXRAR(): Promise<boolean> {
+  const xr = typeof navigator !== 'undefined' ? (navigator as Navigator & { xr?: XRSystem }).xr : undefined
+  if (!xr?.isSessionSupported) return false
+  try {
+    return await xr.isSessionSupported('immersive-ar')
+  } catch {
+    return false
+  }
 }
 
 export function isAndroid(): boolean {

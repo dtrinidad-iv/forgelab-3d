@@ -9,7 +9,7 @@
  *
  * Three.js objects live in plain variables on purpose — Vue proxies break Three internals.
  */
-import { type Object3D, Vector3 } from 'three'
+import { Group, Mesh, MeshBasicMaterial, type Object3D, RingGeometry, Vector3 } from 'three'
 import { FORGELAB_ROAD_BIKE, type ModelAssetMap } from '~/config/assetMap'
 import { GROUPS } from '~/config/catalog'
 import type { GroupId } from '~/types/configurator'
@@ -17,7 +17,7 @@ import { ConfiguratorScene, MissingAssetError, type VisualStatus, type VisualTar
 import { type AssetMappingResult, resolveAssetMap } from '~/utils/three/assetMapping'
 import { createScene, type ViewerContext, WebGLUnavailableError } from '~/utils/three/createScene'
 import { disposeObject3D } from '~/utils/three/dispose'
-import { AR_UNAVAILABLE_HASH, exportUsdz, isAndroid, openQuickLook, sceneViewerIntent, supportsQuickLook } from '~/utils/three/ar'
+import { AR_UNAVAILABLE_HASH, exportUsdz, isAndroid, openQuickLook, sceneViewerIntent, supportsQuickLook, supportsWebXRAR } from '~/utils/three/ar'
 import { ExplodedView } from '~/utils/three/explodedView'
 import { LIGHTING_PRESETS, type LightingPresetId, LightingRig } from '~/utils/three/lighting'
 import { formatReport, inspectModel } from '~/utils/three/inspectModel'
@@ -57,13 +57,20 @@ const isExploded = ref(false)
 const lighting = ref<LightingPresetId>('studio')
 // ---- AR state ----
 const arQuickLook = ref(false) // iOS AR Quick Look available
-const arAndroid = ref(false) // Android → Google Scene Viewer
+const arAndroid = ref(false) // Android: live WebXR first, Scene Viewer as fallback
+const arWebXR = ref(false) // browser reports WebXR immersive-ar support
+const arActive = ref(false) // WebXR session running
+const arPlaced = ref(false)
+const arFloorFound = ref(false) // reticle currently on a detected surface
+const arOfferSceneViewer = ref(false) // live AR failed → offer Scene Viewer (needs a fresh tap)
+const arOverlay = ref<HTMLDivElement | null>(null)
 const usdzReady = ref(false)
 const arError = ref('')
 let arErrorTimer: ReturnType<typeof setTimeout> | undefined
 function showArError(message: string) {
   arError.value = message
   clearTimeout(arErrorTimer)
+  if (xrSession) void xrSession.end().catch(() => {})
   arErrorTimer = setTimeout(() => (arError.value = ''), 8000)
 }
 const statuses = ref<Partial<Record<GroupId, VisualStatus>>>({})
@@ -85,6 +92,11 @@ let appliedTarget: VisualTarget | null = null
 let home: CameraView | null = null
 let usdz: Uint8Array | null = null
 let usdzTimer: ReturnType<typeof setTimeout> | undefined
+let xrSession: XRSession | null = null
+let hitTestSource: XRHitTestSource | null = null
+let arAnchor: Group | null = null
+let reticle: Mesh | null = null
+let homeRootPosition: Vector3 | null = null
 let resizeObserver: ResizeObserver | null = null
 let abort: AbortController | null = null
 let disposed = false
@@ -147,13 +159,20 @@ function zoom(factor: number) {
 }
 
 // ---- Render loop / sizing ----
-function renderLoop(now: number) {
-  if (!ctx || disposed || document.hidden) return
-  stepTween(now)
-  configurator?.update(now)
-  exploded?.update(now)
-  rig?.update(now)
-  ctx.controls.update()
+/** Driven by renderer.setAnimationLoop so the same loop also serves WebXR AR sessions. */
+function renderLoop(now: number, frame?: XRFrame) {
+  if (!ctx || disposed) return
+  if (!arActive.value && document.hidden) return
+  if (arActive.value) {
+    // In AR only what's visible matters: keep the frame budget for tracking + hit-testing.
+    updateHitTest(frame)
+  } else {
+    stepTween(now)
+    configurator?.update(now)
+    exploded?.update(now)
+    rig?.update(now)
+    ctx.controls.update()
+  }
   ctx.renderer.render(ctx.scene, ctx.camera)
 }
 
@@ -176,21 +195,133 @@ function scheduleUsdz() {
 }
 
 function openAR() {
+  arOfferSceneViewer.value = false
   if (arQuickLook.value) {
     if (usdz && usdzReady.value) openQuickLook(usdz) // synchronous inside the tap (Safari requirement)
     else showArError('AR is still being prepared — try again in a moment.')
     return
   }
-  if (arAndroid.value) {
-    if (!props.arModelPath) return showArError('AR is not available for this model.')
-    const page = window.location.href.split('#')[0]!
-    const model = new URL(props.arModelPath, window.location.origin).toString()
-    window.location.href = sceneViewerIntent(model, page + AR_UNAVAILABLE_HASH, 'ForgeLab — your build')
+  if (!arAndroid.value) return
+  if (arWebXR.value) void startWebXR() // requestSession runs synchronously inside this tap
+  else openSceneViewer()
+}
+
+/** Google Scene Viewer with a server-assembled GLB of the exact build. Must be called from a tap. */
+function openSceneViewer() {
+  arOfferSceneViewer.value = false
+  if (!props.arModelPath) return showArError('AR is not available for this model.')
+  const page = window.location.href.split('#')[0]!
+  const model = new URL(props.arModelPath, window.location.origin).toString()
+  window.location.href = sceneViewerIntent(model, page + AR_UNAVAILABLE_HASH, 'ForgeLab — your build')
+}
+
+// ---- AR: WebXR (Android Chrome + ARCore): place the live scene on the floor at 1:1 ----
+async function startWebXR() {
+  if (!ctx || !modelRoot || arActive.value) return
+  const xr = (navigator as Navigator & { xr?: XRSystem }).xr
+  if (!xr) return openSceneViewer()
+  let session: XRSession | null = null
+  try {
+    session = await xr.requestSession('immersive-ar', {
+      requiredFeatures: ['hit-test'],
+      optionalFeatures: ['dom-overlay'],
+      domOverlay: arOverlay.value ? { root: arOverlay.value } : undefined,
+    } as XRSessionInit)
+    ctx.renderer.xr.enabled = true
+    // Render AR at 80% resolution: high-res phones keep a smooth frame rate, so the
+    // placement ring tracks the floor without lag. Must be set before the session starts.
+    ctx.renderer.xr.setFramebufferScaleFactor(0.8)
+    ctx.renderer.xr.setReferenceSpaceType('local')
+    await ctx.renderer.xr.setSession(session)
+    xrSession = session
+    const viewerSpace = await session.requestReferenceSpace('viewer')
+    hitTestSource = (await session.requestHitTestSource?.({ space: viewerSpace })) ?? null
+    if (!hitTestSource) throw new Error('Hit-testing is not available')
+
+    // Re-parent the bike under an anchor we can move onto the detected floor.
+    homeRootPosition = modelRoot.position.clone()
+    arAnchor = new Group()
+    arAnchor.add(modelRoot)
+    ctx.scene.add(arAnchor)
+    arAnchor.visible = false
+    ctx.ground.visible = false
+    reticle = new Mesh(new RingGeometry(0.12, 0.15, 48).rotateX(-Math.PI / 2), new MeshBasicMaterial({ color: 0xffffff }))
+    reticle.matrixAutoUpdate = false
+    reticle.visible = false
+    ctx.scene.add(reticle)
+    ctx.controls.enabled = false
+    arPlaced.value = false
+    arFloorFound.value = false
+    arActive.value = true
+    session.addEventListener('select', placeOnReticle)
+    session.addEventListener('end', endWebXR)
+  } catch (err) {
+    console.error('[ProductViewer] Live AR could not start:', err)
+    // Never leave a half-started session behind.
+    if (session && !xrSession) void session.end().catch(() => {})
+    else if (xrSession) void xrSession.end().catch(() => {})
+    arOfferSceneViewer.value = true // a new tap is needed to open another app
   }
+}
+
+function updateHitTest(frame?: XRFrame) {
+  if (!ctx || !frame || !hitTestSource || !reticle) return
+  const space = ctx.renderer.xr.getReferenceSpace()
+  const hit = space ? frame.getHitTestResults(hitTestSource)[0] : undefined
+  const pose = hit && space ? hit.getPose(space) : undefined
+  reticle.visible = Boolean(pose)
+  if (pose) reticle.matrix.fromArray(pose.transform.matrix)
+  if (arFloorFound.value !== reticle.visible) arFloorFound.value = reticle.visible // only on change
+}
+
+function placeOnReticle() {
+  if (!ctx || !arAnchor || !reticle?.visible || !homeRootPosition) return
+  const p = new Vector3().setFromMatrixPosition(reticle.matrix)
+  arAnchor.position.copy(p)
+  // Turn the bike side-on to the viewer (its length runs along X, the drive side faces +Z).
+  const cam = ctx.renderer.xr.getCamera().getWorldPosition(new Vector3())
+  arAnchor.rotation.set(0, Math.atan2(cam.x - p.x, cam.z - p.z), 0)
+  arAnchor.visible = true
+  arPlaced.value = true
+}
+
+function endWebXR() {
+  const session = xrSession
+  xrSession = null
+  hitTestSource?.cancel()
+  hitTestSource = null
+  session?.removeEventListener('select', placeOnReticle)
+  session?.removeEventListener('end', endWebXR)
+  if (ctx) {
+    if (reticle) {
+      ctx.scene.remove(reticle)
+      reticle.geometry.dispose()
+      ;(reticle.material as MeshBasicMaterial).dispose()
+    }
+    if (modelRoot && arAnchor) {
+      ctx.scene.add(modelRoot) // re-parent back
+      if (homeRootPosition) modelRoot.position.copy(homeRootPosition)
+      ctx.scene.remove(arAnchor)
+    }
+    ctx.ground.visible = true
+    ctx.renderer.xr.enabled = false
+    ctx.controls.enabled = true
+  }
+  reticle = null
+  arAnchor = null
+  arActive.value = false
+  arPlaced.value = false
+  arFloorFound.value = false
+  resize()
+}
+
+function exitAR() {
+  void xrSession?.end()
 }
 
 function resize() {
   if (!ctx || !container.value) return
+  if (ctx.renderer.xr.isPresenting) return // the XR session owns the framebuffer
   const { clientWidth: w, clientHeight: h } = container.value
   if (w === 0 || h === 0) return
   ctx.camera.aspect = w / h
@@ -383,6 +514,7 @@ onMounted(() => {
   rig = new LightingRig(ctx)
   arQuickLook.value = supportsQuickLook()
   arAndroid.value = !arQuickLook.value && isAndroid()
+  if (arAndroid.value) void supportsWebXRAR().then((ok) => (arWebXR.value = ok))
   // Coming back from an Android intent that couldn't open Scene Viewer.
   if (window.location.hash === AR_UNAVAILABLE_HASH) {
     history.replaceState(null, '', window.location.pathname + window.location.search)
@@ -485,6 +617,36 @@ defineExpose({
         >
           Try again
         </button>
+      </div>
+    </div>
+
+    <!-- WebXR DOM overlay (shown by the browser over the camera feed during AR) -->
+    <div ref="arOverlay" class="pointer-events-none" :class="arActive ? 'fixed inset-0 z-[60]' : 'hidden'">
+      <div v-if="arActive" class="pointer-events-auto absolute inset-x-0 top-0 flex items-start justify-between gap-3 p-4">
+        <p class="flex items-center gap-2 rounded-full bg-ink/80 px-4 py-2 text-sm text-bone">
+          <span v-if="!arPlaced && !arFloorFound" class="h-2 w-2 animate-ping rounded-full bg-forge" aria-hidden="true" />
+          {{
+            arPlaced
+              ? 'Tap again to move the bike'
+              : arFloorFound
+                ? 'Tap to place your bike'
+                : 'Move your phone slowly to find the floor…'
+          }}
+        </p>
+        <button type="button" class="shrink-0 rounded-full bg-bone px-4 py-2 text-sm font-medium text-ink" @click="exitAR">Exit AR</button>
+      </div>
+    </div>
+
+    <!-- Live AR failed on this phone → offer Scene Viewer (opening another app needs a fresh tap) -->
+    <div
+      v-if="arOfferSceneViewer"
+      class="absolute inset-x-3 top-16 z-10 mx-auto max-w-md rounded-2xl bg-ink/90 p-4 text-sm text-bone shadow-lg sm:top-20"
+      role="alert"
+    >
+      <p>Live AR couldn't start on this phone. You can view your build in Google's Scene Viewer instead.</p>
+      <div class="mt-3 flex gap-2">
+        <button type="button" class="rounded-full bg-forge px-4 py-2 font-medium text-white" @click="openSceneViewer">Open in Scene Viewer</button>
+        <button type="button" class="rounded-full border border-graphite px-4 py-2" @click="arOfferSceneViewer = false">Not now</button>
       </div>
     </div>
 

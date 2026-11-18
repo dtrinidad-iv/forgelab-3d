@@ -35,7 +35,11 @@ handlebars ~130 KB; saddles 110–180 KB; stems ~10 KB). Compression runs inside
   generated on-device — nothing is downloaded), so the AR tap opens Quick Look instantly.
 - Android: Scene Viewer needs a public GLB URL, so `/api/ar/model.glb?c=…` assembles the exact build
   server-side with the same swap engine (dequantized plain glTF, ~2.1 MB, ~0.1 s warm), cacheable per
-  configuration + build. (WebXR was tried first but proved unreliable on Samsung devices.)
+  configuration + build.
+- Android live AR (WebXR) is tried first — it works on e.g. a Galaxy S24 Ultra but failed to start on
+  another Galaxy; if it can't start, Scene Viewer is offered (a fresh tap is required to open another
+  app). Live AR renders at 80% framebuffer resolution and skips non-AR per-frame work so the
+  placement ring keeps up with the camera.
 - Procedural shader finishes are not representable in USDZ materials; iOS AR shows their base colour.
 
 ## Rendering
