@@ -55,11 +55,6 @@ export interface CatalogOption {
   paint?: PaintSpec & { custom?: boolean }
   /** Frame options only: frameset weight in grams. */
   weightGrams?: number
-  /**
-   * Logical 3D asset key (e.g. `wheels.carbon-deep`). Resolved to real model nodes by the
-   * asset-mapping layer (Phase 2+). Not used for any visual change yet.
-   */
-  assetKey?: string
 }
 
 export type Selections = Record<GroupId, string | null>

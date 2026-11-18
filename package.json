@@ -11,7 +11,8 @@
     "typecheck": "nuxt typecheck && tsc -p scripts",
     "postinstall": "nuxt prepare",
     "generate:bike": "tsx scripts/bike/generate.ts",
-    "inspect:glb": "tsx scripts/inspect-glb.ts"
+    "inspect:glb": "tsx scripts/inspect-glb.ts",
+    "test": "vitest run"
   },
   "dependencies": {
     "nuxt": "^3.21.11",
@@ -26,6 +27,7 @@
     "@types/three": "^0.187.0",
     "tsx": "^4.23.15",
     "typescript": "^5.9.3",
+    "vitest": "^5.1.0",
     "vue-tsc": "^3.3.14"
   }
 }

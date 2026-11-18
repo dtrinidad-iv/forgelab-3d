@@ -3,13 +3,17 @@
  * ProductViewer — reusable Three.js viewer (client-only; wrap in <ClientOnly>).
  *
  * Loads the model described by `assetMap`, resolves logical components through the
- * asset-mapping layer, and reports missing parts. If the file doesn't exist it falls back
- * to a clearly labelled TEMPORARY placeholder; if it exists but fails, it shows an error.
+ * asset-mapping layer, and applies `target` (paint + component variants) via ConfiguratorScene.
+ * Emits `visual-status` with what ACTUALLY changed per group — the UI relies on it to stay honest.
+ * If the file doesn't exist it falls back to a clearly labelled TEMPORARY placeholder.
  *
  * Three.js objects live in plain variables on purpose — Vue proxies break Three internals.
  */
 import { type Object3D, Vector3 } from 'three'
 import { FORGELAB_ROAD_BIKE, type ModelAssetMap } from '~/config/assetMap'
+import { GROUPS } from '~/config/catalog'
+import type { GroupId } from '~/types/configurator'
+import { ConfiguratorScene, MissingAssetError, type VisualStatus, type VisualTarget } from '~/utils/three/configuratorScene'
 import { type AssetMappingResult, resolveAssetMap } from '~/utils/three/assetMapping'
 import { createScene, type ViewerContext, WebGLUnavailableError } from '~/utils/three/createScene'
 import { disposeObject3D } from '~/utils/three/dispose'
@@ -19,7 +23,7 @@ import { createPlaceholderBike } from '~/utils/three/placeholder'
 
 type ViewerStatus = 'loading' | 'ready' | 'placeholder' | 'error'
 
-const props = withDefaults(defineProps<{ assetMap?: ModelAssetMap; autoRotate?: boolean }>(), {
+const props = withDefaults(defineProps<{ assetMap?: ModelAssetMap; target?: VisualTarget; autoRotate?: boolean }>(), {
   assetMap: () => FORGELAB_ROAD_BIKE,
   autoRotate: false,
 })
@@ -27,6 +31,7 @@ const props = withDefaults(defineProps<{ assetMap?: ModelAssetMap; autoRotate?: 
 const emit = defineEmits<{
   loaded: [payload: { placeholder: boolean; mapping: AssetMappingResult | null }]
   error: [error: Error]
+  'visual-status': [statuses: Partial<Record<GroupId, VisualStatus>>]
 }>()
 
 const container = ref<HTMLDivElement | null>(null)
@@ -35,10 +40,20 @@ const progress = ref(0)
 const errorMessage = ref('')
 const canRetry = ref(true)
 const missingComponents = ref<string[]>([])
+const statuses = ref<Partial<Record<GroupId, VisualStatus>>>({})
+const updating = computed(() =>
+  (Object.entries(statuses.value) as [GroupId, VisualStatus][])
+    .filter(([, s]) => s.state === 'loading')
+    .map(([g]) => GROUPS[g].label.toLowerCase()),
+)
+watch(statuses, (v) => emit('visual-status', { ...v }), { deep: true })
 
 let ctx: ViewerContext | null = null
 let modelRoot: Object3D | null = null
 let mapping: AssetMappingResult | null = null
+let configurator: ConfiguratorScene | null = null
+/** Last target handed to the scene (plain copy, used to diff). */
+let appliedTarget: VisualTarget | null = null
 let home: CameraView | null = null
 let frameId = 0
 let resizeObserver: ResizeObserver | null = null
@@ -95,6 +110,7 @@ function renderLoop(now = performance.now()) {
   frameId = requestAnimationFrame(renderLoop)
   if (document.hidden) return
   stepTween(now)
+  configurator?.update(now)
   ctx.controls.update()
   ctx.renderer.render(ctx.scene, ctx.camera)
 }
@@ -108,8 +124,65 @@ function resize() {
   ctx.renderer.setSize(w, h, false)
 }
 
+// ---- Configuration → 3D ----
+const cloneTarget = (t: VisualTarget): VisualTarget => JSON.parse(JSON.stringify(t))
+
+/** Component files are loaded through the same loader as the main model. */
+const loadComponent = (url: string) =>
+  loadModel(url).catch((err) => {
+    if (err instanceof ModelNotFoundError) throw new MissingAssetError(`Missing 3D asset: ${url}`)
+    throw err
+  })
+
+function setGroupStatus(group: GroupId, status: VisualStatus) {
+  statuses.value = { ...statuses.value, [group]: status }
+}
+
+/** Applies only the groups that changed since the last call. */
+function applyTarget(next: VisualTarget | undefined, animate = true): Promise<unknown> {
+  if (!configurator || !next) return Promise.resolve()
+  const scene = configurator
+  const prev = appliedTarget
+  appliedTarget = cloneTarget(next)
+  const jobs: Promise<unknown>[] = []
+
+  if (!prev || JSON.stringify(prev.paint) !== JSON.stringify(next.paint)) {
+    setGroupStatus('paint', scene.applyPaint(next.paint, animate))
+  }
+  for (const group of Object.keys(next.variants) as GroupId[]) {
+    const option = next.variants[group] ?? null
+    if (prev && (prev.variants[group] ?? null) === option && statuses.value[group]) continue
+    const visual = props.assetMap.visuals[group]
+    if (visual?.kind === 'component' && option && scene.shownVariant(group) !== option) {
+      setGroupStatus(group, { state: 'loading', kind: 'component' })
+    }
+    jobs.push(
+      scene.setVariant(group, option).then((result) => {
+        // Ignore results for selections the customer has already changed again.
+        if (configurator === scene && (appliedTarget?.variants[group] ?? null) === option) setGroupStatus(group, result)
+      }),
+    )
+  }
+  return Promise.all(jobs)
+}
+
+function markPlaceholderStatuses() {
+  const groups = new Set<GroupId>(['paint', ...((Object.keys(props.target?.variants ?? {}) as GroupId[]))])
+  statuses.value = Object.fromEntries(
+    [...groups].map((g) => [g, { state: 'unsupported', message: 'Placeholder model — selections are not shown in 3D.' } satisfies VisualStatus]),
+  )
+}
+
+async function disposeConfigurator() {
+  const scene = configurator
+  configurator = null
+  appliedTarget = null
+  await scene?.dispose()
+}
+
 function setModel(object: Object3D) {
   if (!ctx) return
+  void disposeConfigurator()
   if (modelRoot) disposeObject3D(modelRoot)
   modelRoot = object
   ctx.scene.add(object)
@@ -146,13 +219,20 @@ async function load() {
     mapping = resolveAssetMap(model, props.assetMap)
     missingComponents.value = mapping.missing
     reportInDev(model, mapping)
+    configurator = new ConfiguratorScene(model, props.assetMap, loadComponent)
+    // Apply the saved/current configuration before revealing the model.
+    await applyTarget(props.target, false)
+    if (disposed || signal.aborted) return
     status.value = 'ready'
+    // Catch selections made while the model was loading.
+    void applyTarget(props.target)
     emit('loaded', { placeholder: false, mapping })
   } catch (err) {
     if (disposed || signal.aborted) return
     if (err instanceof ModelNotFoundError) {
       setModel(createPlaceholderBike())
       mapping = null
+      markPlaceholderStatuses()
       status.value = 'placeholder'
       emit('loaded', { placeholder: true, mapping: null })
       return
@@ -190,6 +270,14 @@ onMounted(() => {
 
 watch(() => props.assetMap.url, () => load())
 watch(
+  () => props.target,
+  (next) => {
+    if (status.value === 'ready') void applyTarget(next)
+    else if (status.value === 'placeholder') markPlaceholderStatuses()
+  },
+  { deep: true },
+)
+watch(
   () => props.autoRotate,
   (v) => ctx && (ctx.controls.autoRotate = v),
 )
@@ -202,6 +290,7 @@ onBeforeUnmount(() => {
   resizeObserver = null
 
   if (!ctx) return
+  void disposeConfigurator()
   if (modelRoot) disposeObject3D(modelRoot)
   modelRoot = null
   mapping = null
@@ -218,7 +307,7 @@ onBeforeUnmount(() => {
 /** Exposed for the component-replacement / material layers (Phase 3). */
 defineExpose({
   getModelRoot: () => modelRoot,
-  getMapping: () => mapping,
+  getMapping: () => configurator?.getMapping() ?? mapping,
   resetView,
   zoom,
   reload: load,
@@ -286,6 +375,23 @@ defineExpose({
         {{ missingComponents.length }} component{{ missingComponents.length > 1 ? 's' : '' }} not in model
       </div>
     </div>
+
+    <!-- Component loading -->
+    <Transition
+      enter-active-class="transition duration-200"
+      enter-from-class="opacity-0 -translate-y-1"
+      leave-active-class="transition duration-300"
+      leave-to-class="opacity-0"
+    >
+      <div
+        v-if="updating.length"
+        class="pointer-events-none absolute left-1/2 top-4 flex -translate-x-1/2 items-center gap-2 rounded-full bg-ink/90 px-3.5 py-1.5 text-[0.7rem] font-medium text-bone sm:top-5"
+        role="status"
+      >
+        <span class="h-3 w-3 animate-spin rounded-full border border-bone/40 border-t-bone" aria-hidden="true" />
+        Updating {{ updating.join(', ') }}…
+      </div>
+    </Transition>
 
     <!-- View controls -->
     <div

@@ -52,6 +52,7 @@ const panelId = `group-${props.group}`
     </component>
 
     <div v-show="open" :id="panelId" :class="collapsible ? 'pb-6 lg:!block' : ''">
+      <VisualBadge :group="group" class="mb-3" />
       <p v-if="invalid" class="mb-3 flex items-center gap-2 text-sm font-medium text-forge-600" role="alert">
         <span class="h-1.5 w-1.5 rounded-full bg-forge" aria-hidden="true" />
         Please select a {{ definition.label.toLowerCase() }} to continue.

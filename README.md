@@ -13,6 +13,7 @@ Requires Node 20+.
 npm install
 npm run dev          # http://localhost:3000
 npm run typecheck
+npm test
 npm run build && npm run preview
 
 npm run generate:bike                                 # regenerate the 3D assets
@@ -28,6 +29,9 @@ npm run inspect:glb -- public/models/bicycle/road-bike.glb
 - Configuration saved in a cookie — survives reloads, rendered server-side
 - Reset to defaults
 - Interactive Three.js viewer: orbit, zoom, reset view, loading progress, error handling
+- Real-time frame paint (presets + custom colour, matte / gloss / metallic) without reloading the scene
+- Genuine 3D part replacement for wheels, handlebar, stem and saddle; bar-tape colour; every
+  option states whether it is shown in 3D (frame type, size and groupset are not)
 - Original procedural road-bike model (generated in code, see `docs/asset-requirements.md`) with
   named components, mount anchors and an asset-mapping layer that reports missing parts
 
@@ -41,6 +45,6 @@ See [`CLAUDE.md`](./CLAUDE.md) for structure and project rules.
 |---|---|---|
 | 1 | Nuxt app, premium UI, 7-step navigation, mock data, pricing engine | Done |
 | 2 | 3D model (original procedural GLB), inspection utility, asset mapping, viewer | Done |
-| 3 | Frame material switching, component replacement, pricing tests | Next |
-| 4 | Compatibility rules, JSON export, responsive polish | Planned |
+| 3 | Frame material switching, component replacement, pricing/swap tests | Done |
+| 4 | Compatibility rules, JSON export, responsive polish | Next |
 | 5 | Commerce/Shopify architecture + docs, QA, performance, demo prep | Planned |

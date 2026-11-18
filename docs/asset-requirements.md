@@ -39,6 +39,21 @@ Full hierarchy, materials and per-mesh counts: [`asset-report.md`](./asset-repor
   `chain_steel`, `rotor_steel`, `rubber_tyre`, `rubber_hood`, `saddle_cover`.
 - **No textures.** Carbon is a visual approximation (colour, roughness, clearcoat) — no weave maps.
 
+## How selections reach the model
+
+`app/config/assetMap.ts` → `visuals` declares, per configurator group, how it is shown:
+
+| Group | 3D behaviour |
+|---|---|
+| Paint | `kind: 'paint'` — one shared `MeshPhysicalMaterial` replaces every `paint_frame` material; colour, roughness, metalness and clearcoat animate. |
+| Wheels, handlebar, stem, saddle | `kind: 'component'` — variant GLB loaded once, slot node cloned and mounted in place (local transform preserved); detached parts are cached for instant re-selection; parts on anchors inside a replaced node move to the new node's anchor. |
+| Bar tape | `kind: 'material'` — shared tape material recoloured. |
+| Frame type, size, groupset | Not visualised; `notes` text is shown next to the options. |
+
+`bakedVariants` records which options the base `road-bike.glb` already shows. Results come back
+from `ConfiguratorScene` per group (`applied` / `loading` / `unsupported` / `missing-asset` / `error`)
+and drive the "Shown in 3D" labels in the UI.
+
 ## Using a third-party model instead
 
 1. Licence must allow commercial use: CC0 or CC BY (credit the author in the viewer and docs).

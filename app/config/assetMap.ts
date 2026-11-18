@@ -3,6 +3,7 @@
  * The app never hard-codes node names; swap models by adding another map.
  * For a third-party model, run `npm run inspect:glb -- <file>` and fill in the candidates.
  */
+import type { GroupId } from '../types/configurator'
 
 export const COMPONENT_IDS = [
   'frame_main',
@@ -27,6 +28,18 @@ export const COMPONENT_IDS = [
 
 export type ComponentId = (typeof COMPONENT_IDS)[number]
 
+/** How a configurator group is represented in 3D for a given model. */
+export type GroupVisual =
+  | { kind: 'paint' }
+  | {
+      kind: 'component'
+      /** Component slots replaced together (e.g. both wheels). Each slot is a node name in the variant file. */
+      slots: ComponentId[]
+      /** Catalog option id → component GLB containing nodes named after `slots`. */
+      variants: Record<string, string>
+    }
+  | { kind: 'material'; target: 'barTape'; variants: Record<string, { color: string; roughness: number; metalness?: number }> }
+
 export interface ModelAssetMap {
   id: string
   url: string
@@ -36,7 +49,15 @@ export interface ModelAssetMap {
   components: Partial<Record<ComponentId, string[]>>
   /** Materials that receive frame paint / bar-tape colour. */
   materials: { paint: string[]; barTape: string[] }
+  /** Groups the model can visualise. Groups not listed are reported as "not shown in 3D". */
+  visuals: Partial<Record<GroupId, GroupVisual>>
+  /** Which option each swappable group shows as baked into the base model file. */
+  bakedVariants: Partial<Record<GroupId, string>>
+  /** Why a group is not visualised (shown in the UI). */
+  notes: Partial<Record<GroupId, string>>
 }
+
+const C = '/models/bicycle/components'
 
 const identity = Object.fromEntries(COMPONENT_IDS.map((id) => [id, [id]])) as Record<ComponentId, string[]>
 
@@ -50,4 +71,42 @@ export const FORGELAB_ROAD_BIKE: ModelAssetMap = {
   },
   components: identity,
   materials: { paint: ['paint_frame'], barTape: ['bar_tape'] },
+  visuals: {
+    paint: { kind: 'paint' },
+    wheels: {
+      kind: 'component',
+      slots: ['wheel_front', 'wheel_rear'],
+      variants: { alloy: `${C}/wheels-alloy.glb`, 'carbon-climbing': `${C}/wheels-carbon-climbing.glb`, 'carbon-deep': `${C}/wheels-carbon-deep.glb` },
+    },
+    handlebar: {
+      kind: 'component',
+      slots: ['handlebar'],
+      variants: { 'alloy-compact': `${C}/handlebar-alloy-compact.glb`, 'carbon-ergo': `${C}/handlebar-carbon-ergo.glb`, 'carbon-aero': `${C}/handlebar-carbon-aero.glb` },
+    },
+    stem: {
+      kind: 'component',
+      slots: ['stem'],
+      variants: { 'alloy-stem': `${C}/stem-alloy.glb`, 'carbon-stem': `${C}/stem-carbon.glb` },
+    },
+    saddle: {
+      kind: 'component',
+      slots: ['saddle'],
+      variants: { 'saddle-comfort': `${C}/saddle-comfort.glb`, 'saddle-short': `${C}/saddle-short-nose.glb`, 'saddle-race': `${C}/saddle-race-carbon.glb` },
+    },
+    barTape: {
+      kind: 'material',
+      target: 'barTape',
+      variants: {
+        'tape-black': { color: '#1B1B1D', roughness: 0.82 },
+        'tape-gel': { color: '#3B3D42', roughness: 0.92 },
+        'tape-tan': { color: '#A8703F', roughness: 0.55 },
+      },
+    },
+  },
+  bakedVariants: { wheels: 'carbon-climbing', handlebar: 'carbon-ergo', stem: 'alloy-stem', saddle: 'saddle-race', barTape: 'tape-black' },
+  notes: {
+    frame: 'One frame shape is modelled. Frame type changes price and specs, not the 3D shape.',
+    size: 'The model is shown in size M.',
+    groupset: 'Groupset differences are not visualised in 3D.',
+  },
 }

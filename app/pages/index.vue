@@ -1,5 +1,9 @@
 <script setup lang="ts">
-const { getOption, paint } = useConfigurator()
+import { GROUP_IDS } from '~/config/catalog'
+import type { VisualTarget } from '~/utils/three/configuratorScene'
+
+const { getOption, paint, selections } = useConfigurator()
+const { set: setVisualStatus } = useVisualStatus()
 const { steps, stepIndex, currentStep } = useConfiguratorSteps()
 const { total } = usePricing()
 
@@ -9,6 +13,12 @@ const paintLabel = computed(() => {
   if (!option) return ''
   return option.paint?.custom && paint.value ? `Custom · ${paint.value.color}` : option.name
 })
+/** What the 3D viewer should show — paint + every group's selection. */
+const visualTarget = computed<VisualTarget>(() => ({
+  paint: paint.value,
+  variants: Object.fromEntries(GROUP_IDS.filter((g) => g !== 'paint').map((g) => [g, selections.value[g]])),
+}))
+
 const isReview = computed(() => currentStep.value.id === 'review')
 const multiGroup = computed(() => currentStep.value.groups.length > 1)
 
@@ -42,7 +52,7 @@ useSeoMeta({
           aria-label="3D bicycle preview"
         >
           <ClientOnly>
-            <ProductViewer class="absolute inset-0" />
+            <ProductViewer class="absolute inset-0" :target="visualTarget" @visual-status="setVisualStatus" />
             <template #fallback>
               <div class="absolute inset-0 grid place-items-center">
                 <span class="h-8 w-8 animate-spin rounded-full border-2 border-bone-300 border-t-ink" />

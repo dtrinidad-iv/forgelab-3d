@@ -1,5 +1,5 @@
 import {
-  ACESFilmicToneMapping,
+  NeutralToneMapping,
   DirectionalLight,
   HemisphereLight,
   Mesh,
@@ -46,8 +46,8 @@ export function createScene(container: HTMLElement): ViewerContext {
 
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
   renderer.outputColorSpace = SRGBColorSpace
-  renderer.toneMapping = ACESFilmicToneMapping
-  renderer.toneMappingExposure = 1.0
+  renderer.toneMapping = NeutralToneMapping
+  renderer.toneMappingExposure = 0.82
   renderer.shadowMap.enabled = true
   renderer.shadowMap.type = PCFShadowMap
   renderer.setClearColor(0x000000, 0) // transparent — page gradient shows through
@@ -65,13 +65,13 @@ export function createScene(container: HTMLElement): ViewerContext {
   const pmrem = new PMREMGenerator(renderer)
   const room = new RoomEnvironment()
   scene.environment = pmrem.fromScene(room, 0.04).texture
-  scene.environmentIntensity = 0.85
+  scene.environmentIntensity = 0.75
   room.dispose()
 
-  const hemi = new HemisphereLight(0xffffff, 0xd9d4cc, 0.6)
+  const hemi = new HemisphereLight(0xffffff, 0xd9d4cc, 0.35)
   scene.add(hemi)
 
-  const key = new DirectionalLight(0xffffff, 1.6)
+  const key = new DirectionalLight(0xffffff, 1.4)
   key.position.set(1.6, 3.2, 2.2)
   key.castShadow = true
   key.shadow.mapSize.set(2048, 2048)
