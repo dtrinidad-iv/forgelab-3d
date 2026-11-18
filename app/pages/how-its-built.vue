@@ -48,7 +48,7 @@ const sections = [
       'Commerce sits behind CommerceProvider / ProductCatalogProvider / CartProvider / CheckoutProvider interfaces; the configurator never talks to a store directly.',
       'The browser never sends prices: server routes re-validate the build, re-price every line by variant id and reject tampered requests.',
       'Multi-currency (USD, CAD, EUR, GBP, JPY), stock per component (frame stock per size), region shipping rules enforced at checkout, printable packing slip with bill of materials.',
-      'Connected to a real Shopify store through the Storefront API: Shopify prices every line by SKU, sold-out variants are refused, and checkout is Shopify-hosted. The product catalog is generated from the configurator (CSV import). This public demo runs the mock store.',
+      'Connected to a real Shopify store through the Storefront API: the prices and stock you see while configuring come live from Shopify (cached for a minute), every cart line is re-priced by SKU, sold-out variants are refused, and checkout is Shopify-hosted. The product catalog is generated from the configurator (CSV import).',
     ],
     try: 'Review → Add to cart → Packing slip',
   },

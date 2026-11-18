@@ -40,6 +40,7 @@ app/
     useConfiguratorSteps.ts  Step navigation, completion, required-selection validation, reset
     usePricing.ts            Reactive wrapper over utils/pricing.ts (+ displayTotal in the chosen currency)
     useCurrency.ts / useInventory.ts / usePieces.ts / useCommerce.ts   Currency cookie, stock, unique pieces, cart flow
+    useLiveCatalog.ts        Shopify live prices + stock (loaded once in pages/index.vue; read by usePricing/useInventory)
     useCompatibility.ts      Reactive wrapper over utils/compatibility.ts (issues, card conflicts, fixes)
     useVisualStatus.ts       What the 3D viewer actually did per group
   config/catalog.ts          Steps, groups, options, prices, defaults — ALL catalog data
@@ -60,6 +61,7 @@ scripts/inspect-glb.ts       CLI inspector
 public/models/bicycle/       Generated GLBs: road-bike.glb + components/*.glb + manifest.json
 app/commerce/                CommerceProvider interfaces, catalog→variant mapping, mock provider/service, Shopify stub
 server/api/commerce/         quote + cart routes (trusted pricing)
+server/api/catalog/live.get.ts  Shopify live price + stock per SKU (60 s cache; null in mock mode)
 docs/                        architecture, configurator-guide, shopify-integration, asset-requirements, blender-workflow, performance, deployment
 tests/ (planned)
 ```
@@ -71,7 +73,7 @@ Note: top-level files in `app/utils/` and `app/composables/` are auto-imported �
 3. **Always dispose** geometries, materials, textures, env maps, controls and renderer on unmount (`utils/three/dispose.ts`). Material changes must not reload the scene.
 4. **No fake 3D.** 3D status shown in the UI comes from `ConfiguratorScene` results (`useVisualStatus`), never from the selection itself. Never present a UI-only selection as a 3D change. If geometry/material for an option is missing, say so in the UI and in reports. The procedural placeholder must stay labelled as temporary.
 5. **Asset mapping:** never assume GLB node names. Map logical ids (`frame_main`, `wheel_front`, …) to real nodes through the asset-mapping layer; handle missing nodes gracefully.
-6. **Catalog data only in `app/config/`.** No prices in templates. Prices are USD, per component; total = sum.
+6. **Catalog data only in `app/config/`.** No prices in templates. Prices are USD, per component; total = sum. In Shopify mode the displayed prices/stock come from Shopify (`usePricing().optionPrice`, `useInventory`) — never read `option.price` in components.
 7. **Client prices are display-only.** Commerce goes through `app/commerce` (`CommerceProvider`); the browser sends `OrderConfiguration` without prices; `server/api/commerce/*` strictly validates and prices. Real orders must be re-priced/validated server-side (Shopify variants or trusted service). Never put Shopify Admin secrets in browser code.
 8. **Compatibility rules are fictional** and must only use the invented `attrs` in the catalog — never real manufacturer specs. Label them "demo rule" in the UI.
 9. **Content:** all product names, specs and prices are fictional. Real brand names (e.g. groupset makers) may label demo options only, with the on-page disclaimer; never claim real specs or compatibility. No third-party logos.

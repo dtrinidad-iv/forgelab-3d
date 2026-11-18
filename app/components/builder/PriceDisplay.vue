@@ -24,7 +24,7 @@ watch(
     const tick = (now: number) => {
       const t = Math.min((now - start) / duration, 1)
       const eased = 1 - Math.pow(1 - t, 3)
-      displayed.value = Math.round(from + (to - from) * eased)
+      displayed.value = t < 1 ? Math.round(from + (to - from) * eased) : to
       if (t < 1) raf = requestAnimationFrame(tick)
     }
     raf = requestAnimationFrame(tick)

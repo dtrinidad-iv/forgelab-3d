@@ -5,12 +5,15 @@ export function convertFromUsd(usd: number, currency: CurrencyCode): number {
   return Math.round(usd * CURRENCIES[currency].rate)
 }
 
-const formatters = new Map<CurrencyCode, Intl.NumberFormat>()
+const formatters = new Map<string, Intl.NumberFormat>()
+/** Whole amounts without cents ("$1,900"); amounts with cents (e.g. a Shopify price of 19.99) keep them. */
 export function formatMoney(amount: number, currency: CurrencyCode): string {
-  let f = formatters.get(currency)
+  const digits = Number.isInteger(amount) ? 0 : 2
+  const key = `${currency}:${digits}`
+  let f = formatters.get(key)
   if (!f) {
-    f = new Intl.NumberFormat(CURRENCIES[currency].locale, { style: 'currency', currency, maximumFractionDigits: 0, minimumFractionDigits: 0 })
-    formatters.set(currency, f)
+    f = new Intl.NumberFormat(CURRENCIES[currency].locale, { style: 'currency', currency, maximumFractionDigits: digits, minimumFractionDigits: digits })
+    formatters.set(key, f)
   }
   return f.format(amount)
 }

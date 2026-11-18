@@ -8,6 +8,7 @@
  *         (`cartCreate`) and hosts checkout. Browser prices are never used.
  */
 import { CURRENCIES, type CurrencyCode, isCurrencyCode } from '~/config/currency'
+import { type LiveCatalog, liveStock } from '../liveCatalog'
 import { quoteOrder } from '../mock/service'
 import { type Attribute, type Cart, type CartLineInput, CommerceError, type ComponentVariant, type Money, type OrderConfiguration, type Quote } from '../types'
 import type { StorefrontFetch } from './storefront'
@@ -23,6 +24,8 @@ export interface ShopifyVariant {
   title: string
   productTitle: string
   availableForSale: boolean
+  /** Only loaded with `{ stock: true }` (needs the unauthenticated_read_product_inventory scope). */
+  quantityAvailable?: number | null
   price: Money
 }
 
@@ -30,33 +33,37 @@ const money = (m: MoneyV2): Money => ({ amount: Number(m.amount), currencyCode: 
 const COUNTRY = /^[A-Z]{2}$/
 const VARIANT_GID = /^gid:\/\/shopify\/ProductVariant\/\d+$/
 
-export const CATALOG_QUERY = /* GraphQL */ `
-  query ForgeLabCatalog($country: CountryCode, $cursor: String) @inContext(country: $country) {
+const catalogQuery = (name: string, extraFields = '') => /* GraphQL */ `
+  query ${name}($country: CountryCode, $cursor: String) @inContext(country: $country) {
     products(first: 100, after: $cursor) {
       pageInfo { hasNextPage endCursor }
       nodes {
         title
-        variants(first: 100) { nodes { id sku title availableForSale price { amount currencyCode } } }
+        variants(first: 100) { nodes { id sku title availableForSale ${extraFields} price { amount currencyCode } } }
       }
     }
   }
 `
+export const CATALOG_QUERY = catalogQuery('ForgeLabCatalog')
+/** Same, plus units in stock (for the configurator's live stock badges). */
+export const CATALOG_STOCK_QUERY = catalogQuery('ForgeLabCatalogStock', 'quantityAvailable')
 
 /** Every variant in the store with a SKU, priced for `country` (Shopify Markets decide the currency). */
-export async function loadShopifyVariants(storefront: StorefrontFetch, country: string): Promise<Map<string, ShopifyVariant>> {
+export async function loadShopifyVariants(storefront: StorefrontFetch, country: string, { stock = false } = {}): Promise<Map<string, ShopifyVariant>> {
   type Page = {
     products: {
       pageInfo: { hasNextPage: boolean; endCursor: string | null }
-      nodes: Array<{ title: string; variants: { nodes: Array<{ id: string; sku: string | null; title: string; availableForSale: boolean; price: MoneyV2 }> } }>
+      nodes: Array<{ title: string; variants: { nodes: Array<{ id: string; sku: string | null; title: string; availableForSale: boolean; quantityAvailable?: number | null; price: MoneyV2 }> } }>
     }
   }
   const out = new Map<string, ShopifyVariant>()
   let cursor: string | null = null
   for (let page = 0; page < 10; page++) {
-    const data: Page = await storefront<Page>(CATALOG_QUERY, { country, cursor })
+    const data: Page = await storefront<Page>(stock ? CATALOG_STOCK_QUERY : CATALOG_QUERY, { country, cursor })
     for (const product of data.products.nodes) {
       for (const v of product.variants.nodes) {
-        if (v.sku) out.set(v.sku, { id: v.id, sku: v.sku, title: v.title, productTitle: product.title, availableForSale: v.availableForSale, price: money(v.price) })
+        if (!v.sku) continue
+        out.set(v.sku, { id: v.id, sku: v.sku, title: v.title, productTitle: product.title, availableForSale: v.availableForSale, quantityAvailable: v.quantityAvailable, price: money(v.price) })
       }
     }
     if (!data.products.pageInfo.hasNextPage) break
@@ -69,6 +76,25 @@ export async function loadShopifyVariants(storefront: StorefrontFetch, country: 
 export function pricingCountry(currency: unknown, shipToCountry?: string | null): string {
   if (shipToCountry && COUNTRY.test(shipToCountry)) return shipToCountry
   return CURRENCIES[isCurrencyCode(currency) ? currency : ('USD' as CurrencyCode)].country
+}
+
+/** Every variant's live price and stock for one market — what the configurator displays. */
+export async function loadLiveCatalog(storefront: StorefrontFetch, country: string, now = new Date()): Promise<LiveCatalog> {
+  if (!COUNTRY.test(country)) throw new CommerceError('Invalid country.', 'invalid-configuration')
+  const variants = [...(await loadShopifyVariants(storefront, country, { stock: true })).values()]
+  if (!variants.length) throw new CommerceError('The Shopify store has no products with SKUs. Import shopify/forgelab-products.csv.', 'unavailable')
+  const currencyCode = variants[0]!.price.currencyCode
+  if (variants.some((v) => v.price.currencyCode !== currencyCode)) throw new CommerceError('Shopify returned mixed currencies.', 'network')
+  // Nothing for sale at all = the store doesn't sell to this market; stock is unknown, not "sold out".
+  const servesMarket = variants.some((v) => v.availableForSale)
+  return {
+    source: 'shopify',
+    currencyCode,
+    country,
+    servesMarket,
+    fetchedAt: now.toISOString(),
+    variants: Object.fromEntries(variants.map((v) => [v.sku, { price: v.price.amount, stock: servesMarket ? liveStock(v) : null }])),
+  }
 }
 
 export async function quoteShopify(input: unknown, storefront: StorefrontFetch, now = new Date()): Promise<Quote> {

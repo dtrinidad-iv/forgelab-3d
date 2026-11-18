@@ -5,7 +5,7 @@ const { format: formatPrice } = useCurrency()
 const { selected: coverPiece } = usePieces()
 const { getOption, paint } = useConfigurator()
 const { goToGroup, canVisit, steps, currentStep, reset } = useConfiguratorSteps()
-const { displayTotal, breakdown } = usePricing()
+const { displayTotal, breakdown, formatOption, priceSource } = usePricing()
 const { errors } = useCompatibility()
 
 const rows = computed(() =>
@@ -52,7 +52,7 @@ function confirmReset() {
             </p>
           </div>
           <span class="tabular shrink-0 text-sm text-graphite group-hover:text-ink">
-            {{ row.option ? (row.option.price === 0 ? 'Included' : formatPrice(row.option.price)) : '—' }}
+            {{ row.option ? formatOption(row.group, row.option.id) : '—' }}
           </span>
         </button>
       </li>
@@ -70,9 +70,10 @@ function confirmReset() {
     <div class="mt-5 flex items-end justify-between">
       <div>
         <p class="text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-graphite-400">Total</p>
-        <p class="text-xs text-graphite-400">
-          {{ breakdown.missing.length ? `${breakdown.missing.length} selection pending` : 'Demo pricing · USD' }}
+        <p class="text-xs text-graphite-400" :title="priceSource.note || undefined">
+          {{ breakdown.missing.length ? `${breakdown.missing.length} selection pending` : priceSource.label }}
         </p>
+        <p v-if="priceSource.note && !breakdown.missing.length" class="text-xs text-forge-600">{{ priceSource.note }}</p>
       </div>
       <PriceDisplay :value="displayTotal" size="lg" />
     </div>

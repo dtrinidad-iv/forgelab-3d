@@ -7,7 +7,7 @@ const { format: formatPrice } = useCurrency()
 const { selected: coverPiece } = usePieces()
 const { configuration, getOption, paint } = useConfigurator()
 const { goToGroup } = useConfiguratorSteps()
-const { total, displayTotal, breakdown } = usePricing()
+const { displayTotal, breakdown, formatOption, priceSource } = usePricing()
 const { errors, isValid } = useCompatibility()
 const { unavailable } = useInventory()
 
@@ -98,7 +98,7 @@ onBeforeUnmount(() => clearTimeout(copyTimer))
             </button>
           </dd>
           <dd class="tabular text-sm">
-            {{ row.option ? (row.option.price === 0 ? 'Included' : formatPrice(row.option.price)) : '—' }}
+            {{ row.option ? formatOption(row.group, row.option.id) : '—' }}
           </dd>
         </div>
         <div v-if="coverPiece" class="grid grid-cols-[5.5rem_1fr_auto] items-start gap-3 px-4 py-4 sm:grid-cols-[8rem_1fr_auto] sm:gap-4 sm:px-5">
@@ -116,6 +116,9 @@ onBeforeUnmount(() => clearTimeout(copyTimer))
     <div class="order-first flex flex-col gap-4 rounded-2xl bg-ink p-6 text-bone">
       <p class="text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-graphite-300">Build total</p>
       <PriceDisplay :value="displayTotal" size="lg" />
+      <p class="-mt-2 text-xs text-graphite-300" data-testid="price-source">
+        {{ priceSource.label }}<template v-if="priceSource.note"> · {{ priceSource.note }}</template>
+      </p>
       <p v-if="frameWeight" class="text-sm text-graphite-300">Frameset {{ frameWeight.toLocaleString('en-US') }} g</p>
 
       <ul class="space-y-1.5 text-sm">
@@ -152,8 +155,8 @@ onBeforeUnmount(() => clearTimeout(copyTimer))
           </button>
         </div>
         <p class="mt-3 text-xs leading-relaxed text-graphite-300">
-          Includes selections, price breakdown and compatibility results. Demo pricing in USD — final
-          pricing is confirmed at checkout.
+          Includes selections, catalog price breakdown (USD) and compatibility results. Final pricing is
+          confirmed at checkout.
         </p>
       </div>
     </div>

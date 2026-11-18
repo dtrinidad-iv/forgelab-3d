@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import type { CatalogOption } from '~/types/configurator'
 
-const { format: formatPrice } = useCurrency()
 const props = defineProps<{
   option: CatalogOption
   selected: boolean
+  /** Formatted price in the display currency ("Included" when free) — see usePricing().formatOption. */
+  priceLabel: string
   compact?: boolean
   /** Set when choosing this option would create a compatibility error. */
   conflict?: string | null
@@ -16,8 +17,6 @@ const props = defineProps<{
 const soldOut = computed(() => props.stock === 0)
 
 defineEmits<{ select: [] }>()
-
-const priceLabel = computed(() => (props.option.price === 0 ? 'Included' : formatPrice(props.option.price)))
 </script>
 
 <template>
@@ -81,7 +80,7 @@ const priceLabel = computed(() => (props.option.price === 0 ? 'Included' : forma
         {{ option.badge }}
       </span>
       <span v-else />
-      <span class="tabular text-sm font-medium" :class="option.price === 0 ? 'text-graphite' : 'text-ink'">
+      <span class="tabular text-sm font-medium" :class="priceLabel === 'Included' ? 'text-graphite' : 'text-ink'">
         {{ priceLabel }}
       </span>
     </div>

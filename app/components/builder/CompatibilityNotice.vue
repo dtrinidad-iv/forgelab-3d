@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { GROUPS } from '~/config/catalog'
 import type { GroupId } from '~/types/configurator'
-import type { CompatibilityIssue } from '~/utils/compatibility'
+import type { CompatibilityFix, CompatibilityIssue } from '~/utils/compatibility'
 
-const { format: formatPrice } = useCurrency()
+const { optionPrice, formatAmount } = usePricing()
+const { selections } = useConfigurator()
 const props = withDefaults(
   defineProps<{ groups: GroupId[]; severities?: CompatibilityIssue['severity'][] }>(),
   { severities: () => ['error', 'warning'] },
@@ -12,7 +13,12 @@ const props = withDefaults(
 const { issuesFor, fixesFor, applyFix } = useCompatibility()
 const list = computed(() => issuesFor(props.groups, props.severities))
 
-const delta = (n: number) => (n === 0 ? 'same price' : `${n > 0 ? '+' : '−'}${formatPrice(Math.abs(n))}`)
+/** Price change of a fix in the display currency (live Shopify prices when loaded). */
+function delta(fix: CompatibilityFix): string {
+  const current = selections.value[fix.group]
+  const n = Math.round((optionPrice(fix.group, fix.optionId) - (current ? optionPrice(fix.group, current) : 0)) * 100) / 100
+  return n === 0 ? 'same price' : `${n > 0 ? '+' : '−'}${formatAmount(Math.abs(n))}`
+}
 </script>
 
 <template>
@@ -65,7 +71,7 @@ const delta = (n: number) => (n === 0 ? 'same price' : `${n > 0 ? '+' : '−'}${
               @click="applyFix(fix)"
             >
               Switch {{ GROUPS[fix.group].label.toLowerCase() }} to {{ fix.name }}
-              <span class="tabular opacity-60">· {{ delta(fix.priceDelta) }}</span>
+              <span class="tabular opacity-60">· {{ delta(fix) }}</span>
             </button>
           </div>
         </div>

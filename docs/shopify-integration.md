@@ -8,16 +8,18 @@ No Shopify packages — one typed `fetch` (`app/commerce/shopify/storefront.ts`)
 |---|---|
 | Product import (CSV, same SKUs/prices/stock as the configurator) | `app/commerce/shopify/productsCsv.ts` → `npm run shopify:csv` → `shopify/forgelab-products.csv` |
 | Quote: strict validation + compatibility + region rules, then every line priced from Shopify by SKU (`@inContext(country)`) | `app/commerce/shopify/service.ts` `quoteShopify` |
+| **Live catalog** for the configurator: every SKU's price + stock (`quantityAvailable`) per market, cached 60 s on the server, refreshed every minute and when the tab regains focus. Cards, totals, fix prices and stock badges read it | `loadLiveCatalog` → `server/api/catalog/live.get.ts` → `useLiveCatalog` / `usePricing` / `useInventory` (`app/commerce/liveCatalog.ts`) |
 | Cart: only `gid://shopify/ProductVariant/…` ids, `cartCreate` with build attributes + buyer country; dropped (sold-out) lines are reported | `createShopifyCart` |
 | Private token, server-only, buyer IP forwarded | `server/utils/shopify.ts` |
 | Browser provider (same routes, redirects to Shopify checkout) | `app/commerce/shopify/provider.ts` |
-| Tests (fake Storefront API) | `tests/shopify.test.ts` |
+| Tests (fake Storefront API) | `tests/shopify.test.ts`, `tests/liveCatalog.test.ts` |
 
 ### Store setup (one time)
 
 1. Dev store (Dev Dashboard → Stores → Create store → Dev). **Settings → General → Store currency: USD**
    before importing (CSV prices are in the store currency).
-2. Install the **Headless** channel → Create storefront → copy the **private** token.
+2. Install the **Headless** channel → Create storefront → copy the **private** token. Keep the
+   `unauthenticated_read_product_inventory` permission on (live stock badges use `quantityAvailable`).
 3. `.env` (git-ignored) / Netlify env vars:
    `NUXT_PUBLIC_SHOPIFY_STORE_DOMAIN=<store>.myshopify.com`, `NUXT_SHOPIFY_STOREFRONT_PRIVATE_TOKEN=…`,
    `NUXT_PUBLIC_COMMERCE_PROVIDER=shopify`.
@@ -47,12 +49,17 @@ No Shopify packages — one typed `fetch` (`app/commerce/shopify/storefront.ts`)
 
 - One-of-a-kind covers live in ForgeLab storage, not Shopify — refused in Shopify mode with a clear
   message. Syncing them needs the Admin API (create a product per piece on upload, inventory 1).
-- The configurator shows demo-rate estimates; Shopify's market prices (currency + rounding) are
-  authoritative and the cart says so when they differ.
+- Prices and stock in the configurator come from Shopify (up to ~1 minute old). The dev store prices
+  every market in USD, so other display currencies are Shopify's USD converted at the demo rates and
+  labelled that way; a market with its own Shopify currency is shown as-is. The cart always shows
+  what Shopify charges and says so when it differs.
+- A market the store doesn't sell to (no market / shipping zone) shows prices but no stock, with a
+  "the store doesn't sell to X yet" note.
 - Region rules are checked before the cart is created; the buyer can still change the address in
   Shopify checkout. Enforcing them there needs a cart & checkout validation Function.
-- Stock badges in the configurator use `config/inventory.ts` (the same numbers the CSV seeds);
-  Shopify's `availableForSale` is what actually blocks a purchase.
+- Names, specs, compatibility and 3D mapping stay in `app/config` (Shopify doesn't model them); a
+  new option still needs a code change plus a Shopify variant with the matching SKU.
+- The exported configuration JSON keeps the code's catalog prices (USD).
 
 ## Original plan
 

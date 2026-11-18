@@ -8,7 +8,9 @@ const { getOption, paint, selections, configuration } = useConfigurator()
 const { selected: coverPiece, imageUrl: pieceImage } = usePieces()
 const { set: setVisualStatus } = useVisualStatus()
 const { steps, stepIndex, currentStep } = useConfiguratorSteps()
-const { total, displayTotal } = usePricing()
+// Shopify's live prices + stock (no-op in demo mode); every price below reads them through usePricing/useInventory.
+useLiveCatalogLoader()
+const { displayTotal } = usePricing()
 const { currency, currencies, setCurrency } = useCurrency()
 const buildRef = useRuntimeConfig().public.buildRef as string
 useHead({ meta: [{ name: 'forgelab-build', content: buildRef }] })

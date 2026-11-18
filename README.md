@@ -116,7 +116,9 @@ Shopify store.
 - The configurator talks only to `CommerceProvider` interfaces (catalog, cart, checkout). A **mock
   store** and a **Shopify Storefront API** provider plug into the same flow.
 - **Shopify mode** (`NUXT_PUBLIC_COMMERCE_PROVIDER=shopify`, used by the live demo):
-  - every line is priced from Shopify by SKU and market (`@inContext`);
+  - **prices and stock shown in the configurator come live from Shopify** (cards, totals, stock
+    badges; cached for a minute), so the store owner changes them in Shopify admin, not in code;
+  - every cart line is priced from Shopify by SKU and market (`@inContext`);
   - sold-out variants are refused;
   - the cart is created with `cartCreate` (build id and options as line attributes);
   - checkout is Shopify-hosted.
@@ -243,7 +245,7 @@ docs/               architecture, guides, Shopify, assets, performance, deployme
 ## Quality
 
 - **TypeScript strict** across the app, server and Node scripts (`npm run typecheck`: 0 errors).
-- **90 unit tests** (Vitest). The swap engine, animation, AR exports and unique-piece mapping run against
+- **96 unit tests** (Vitest). The swap engine, animation, AR exports and unique-piece mapping run against
   the **real generated GLB files**, and commerce rules run against a fake Storefront API.
 - **End-to-end checks** (Playwright) on desktop and phone sizes, run against production builds and the
   live site: through to Shopify checkout and back, and admin upload → 3D cover → cart → sold.
@@ -270,7 +272,8 @@ Project rules for contributors and AI assistants: [`CLAUDE.md`](./CLAUDE.md) (se
   with inventory of 1.
 - Region rules are checked before the cart is created; enforcing them inside Shopify checkout needs a
   cart and checkout validation Function.
-- Configurator prices use fixed demo exchange rates; Shopify's market prices are authoritative.
+- The test store prices in USD only: other display currencies show Shopify's USD price converted at
+  fixed demo rates (labelled as such); Shopify charges USD.
 - The live demo uses a Shopify **development store**: checkout needs the storefront password shown
   in the cart, and payments are test-only.
 

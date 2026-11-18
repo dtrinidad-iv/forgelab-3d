@@ -11,6 +11,7 @@ const { selections, getOption, select, isGroupComplete } = useConfigurator()
 const { showValidation } = useConfiguratorSteps()
 const { conflictLabel } = useCompatibility()
 const { stockOf, isLow } = useInventory()
+const { formatOption } = usePricing()
 
 const definition = computed(() => GROUPS[props.group])
 const options = computed(() => CATALOG[props.group])
@@ -78,6 +79,7 @@ const panelId = `group-${props.group}`
           :selected="selections[group] === option.id"
           :compact="isSize"
           :conflict="conflictLabel(group, option.id)"
+          :price-label="formatOption(group, option.id)"
           :stock="stockOf(group, option.id)"
           :low-stock="isLow(stockOf(group, option.id))"
           @select="select(group, option.id)"
