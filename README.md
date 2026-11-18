@@ -31,6 +31,7 @@ Shopify store.
 - [Quality](#quality)
 - [Documentation](#documentation)
 - [Known limits](#known-limits)
+- [Built with Claude Code](#built-with-claude-code)
 - [Disclaimers](#disclaimers)
 
 ## Try it in 2 minutes
@@ -260,7 +261,7 @@ docs/               architecture, guides, Shopify, assets, performance, deployme
 | [performance](docs/performance.md) | Draco vs Meshopt evaluation and loading strategy |
 | [deployment](docs/deployment.md) | Hosting, environment variables, pre-share checklist |
 
-Project rules for contributors and AI assistants: [`CLAUDE.md`](./CLAUDE.md).
+Project rules for contributors and AI assistants: [`CLAUDE.md`](./CLAUDE.md) (see [Built with Claude Code](#built-with-claude-code)).
 
 ## Known limits
 
@@ -272,6 +273,21 @@ Project rules for contributors and AI assistants: [`CLAUDE.md`](./CLAUDE.md).
 - Configurator prices use fixed demo exchange rates; Shopify's market prices are authoritative.
 - The live demo uses a Shopify **development store**: checkout needs the storefront password shown
   in the cart, and payments are test-only.
+
+## Built with Claude Code
+
+This project was built with **[Claude Code](https://claude.com/claude-code)**, Anthropic's agentic
+coding tool, as an AI pair programmer:
+
+- **The author** set the goals and priorities, made the product and architecture decisions (for
+  example the original procedural model, WebXR-first Android AR, a headless Shopify checkout), set
+  up the Shopify store and the Netlify hosting, and tested on real devices.
+- **Claude Code** wrote most of the code, tests and documentation under that direction, ran the
+  type checks and test suites, and verified each feature in the running app, on production builds
+  and on the live site (Playwright), including a test order through Shopify checkout.
+
+Project rules the assistant follows, such as no fake 3D, server-side pricing and asset-mapping
+conventions, are in [`CLAUDE.md`](./CLAUDE.md).
 
 ## Disclaimers
 
