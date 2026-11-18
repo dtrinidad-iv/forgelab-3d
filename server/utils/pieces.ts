@@ -9,9 +9,13 @@ const onNetlifyBlobs = () => Boolean((globalThis as { netlifyBlobsContext?: stri
  * Storage: Netlify Blobs on Netlify, ./.data/pieces locally (nitro.storage in nuxt.config).
  * On Netlify a NEW client is created per call: @netlify/blobs reads the access token when the store
  * is created, and that token is short-lived per invocation — a cached client starts failing with 401.
+ * Reads are strongly consistent (default Blobs reads can lag writes by up to a minute).
  */
 export const piecesStore = (): Storage =>
-  onNetlifyBlobs() ? createStorage({ driver: netlifyBlobsDriver({ name: 'forgelab-pieces' }) }) : useStorage('pieces')
+  onNetlifyBlobs()
+    ? // strong consistency: an upload/delete/sold change is visible on the very next request
+      createStorage({ driver: netlifyBlobsDriver({ name: 'forgelab-pieces', consistency: 'strong' }) })
+    : useStorage('pieces')
 
 export async function listPieces(): Promise<UniquePiece[]> {
   const store = piecesStore()
