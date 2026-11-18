@@ -1,0 +1,117 @@
+<script setup lang="ts">
+const { steps, stepIndex, currentStep, totalPrice, getOption } = useConfigurator()
+
+const frameName = computed(() => getOption('frame')?.name ?? '')
+const paintName = computed(() => getOption('paint')?.name ?? '')
+const isReview = computed(() => currentStep.value.id === 'review')
+
+useSeoMeta({
+  title: () => `${currentStep.value.label} · ForgeLab Configurator`,
+})
+</script>
+
+<template>
+  <div class="flex min-h-dvh flex-col">
+    <!-- Header -->
+    <header class="sticky top-0 z-40 border-b border-bone-300/80 bg-bone/85 backdrop-blur-md">
+      <div class="mx-auto flex h-16 max-w-[1600px] items-center justify-between px-4 sm:px-6 lg:px-10">
+        <ForgeLabLogo />
+        <p class="hidden text-sm text-graphite md:block">
+          Road Configurator <span class="mx-2 text-bone-300">/</span>
+          <span class="text-ink">{{ frameName }}</span>
+        </p>
+        <div class="flex items-center gap-3">
+          <span class="hidden text-xs uppercase tracking-[0.12em] text-graphite-400 sm:inline">Total</span>
+          <PriceDisplay :value="totalPrice" />
+        </div>
+      </div>
+    </header>
+
+    <div class="mx-auto w-full max-w-[1600px] flex-1 lg:grid lg:grid-cols-[minmax(0,1fr)_380px] xl:grid-cols-[minmax(0,1fr)_420px]">
+      <main class="min-w-0 pb-28 lg:pb-16">
+        <!-- 3D viewer -->
+        <section
+          class="relative h-[46vh] min-h-[300px] overflow-hidden bg-[radial-gradient(ellipse_at_50%_40%,#FFFFFF_0%,#F4F2EE_55%,#E9E6E0_100%)] lg:h-[min(64vh,760px)] lg:min-h-[460px]"
+          aria-label="3D bicycle preview"
+        >
+          <ClientOnly>
+            <ProductViewer class="absolute inset-0" />
+            <template #fallback>
+              <div class="absolute inset-0 grid place-items-center">
+                <span class="h-8 w-8 animate-spin rounded-full border-2 border-bone-300 border-t-ink" />
+              </div>
+            </template>
+          </ClientOnly>
+
+          <div class="pointer-events-none absolute bottom-4 left-4 sm:bottom-6 sm:left-6 lg:left-10">
+            <p class="text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-graphite-400">ForgeLab</p>
+            <p class="font-display text-2xl font-semibold tracking-tightest sm:text-4xl">{{ frameName }}</p>
+            <p class="text-sm text-graphite">{{ paintName }}</p>
+          </div>
+        </section>
+
+        <!-- Step navigation -->
+        <div class="sticky top-16 z-30 border-b border-bone-300/80 bg-bone/90 px-3 py-2.5 backdrop-blur-md sm:px-5 lg:px-9">
+          <StepNav />
+        </div>
+
+        <!-- Step content -->
+        <section class="px-4 pt-8 sm:px-6 lg:px-10 lg:pt-10">
+          <Transition name="step" mode="out-in">
+            <div :key="currentStep.id">
+              <p class="tabular text-xs font-semibold uppercase tracking-[0.14em] text-forge">
+                Step {{ stepIndex + 1 }} of {{ steps.length }}
+              </p>
+              <h1 class="mt-2 font-display text-3xl font-semibold tracking-tightest sm:text-4xl">{{ currentStep.title }}</h1>
+              <p class="mt-2 max-w-2xl text-[0.95rem] leading-relaxed text-graphite">{{ currentStep.description }}</p>
+
+              <div class="mt-8">
+                <ReviewPanel v-if="isReview" />
+                <OptionGrid v-else />
+              </div>
+            </div>
+          </Transition>
+
+          <!-- Mobile build summary -->
+          <details class="group mt-10 rounded-2xl border border-bone-300 bg-white p-5 lg:hidden">
+            <summary class="flex cursor-pointer list-none items-center justify-between font-medium">
+              Build summary
+              <span class="text-graphite transition-transform duration-300 group-open:rotate-180" aria-hidden="true">⌄</span>
+            </summary>
+            <div class="mt-4"><BuildSummary /></div>
+          </details>
+        </section>
+      </main>
+
+      <!-- Desktop right-side summary -->
+      <aside class="hidden border-l border-bone-300 bg-bone-200/40 lg:block">
+        <div class="sticky top-16 flex h-[calc(100dvh-4rem)] flex-col gap-8 overflow-y-auto p-8">
+          <BuildSummary />
+          <div class="mt-auto"><StepFooter /></div>
+        </div>
+      </aside>
+    </div>
+
+    <!-- Mobile bottom bar -->
+    <div class="fixed inset-x-0 bottom-0 z-40 border-t border-bone-300 bg-bone/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur-md lg:hidden">
+      <StepFooter />
+    </div>
+  </div>
+</template>
+
+<style scoped>
+.step-enter-active,
+.step-leave-active {
+  transition:
+    opacity 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.step-enter-from {
+  opacity: 0;
+  transform: translateY(8px);
+}
+.step-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+</style>

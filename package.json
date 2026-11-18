@@ -1,0 +1,27 @@
+{
+  "name": "forgelab-3d",
+  "private": true,
+  "type": "module",
+  "version": "0.1.0",
+  "scripts": {
+    "dev": "nuxt dev",
+    "build": "nuxt build",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "typecheck": "nuxt typecheck",
+    "postinstall": "nuxt prepare"
+  },
+  "dependencies": {
+    "nuxt": "^3.21.11",
+    "three": "^0.187.0",
+    "vue": "^3.5.45",
+    "vue-router": "^4.6.5"
+  },
+  "devDependencies": {
+    "@nuxt/fonts": "^1.2.0",
+    "@nuxtjs/tailwindcss": "^6.14.0",
+    "@types/three": "^0.187.0",
+    "typescript": "^5.9.3",
+    "vue-tsc": "^3.3.14"
+  }
+}
