@@ -35,11 +35,14 @@ app/
     useConfigurator.ts       Selections + custom paint state (useState)
     useConfiguratorSteps.ts  Step navigation, completion, required-selection validation, reset
     usePricing.ts            Reactive wrapper over utils/pricing.ts
+    useCompatibility.ts      Reactive wrapper over utils/compatibility.ts (issues, card conflicts, fixes)
+    useVisualStatus.ts       What the 3D viewer actually did per group
   config/catalog.ts          Steps, groups, options, prices, defaults — ALL catalog data
+  config/compatibility.ts    FICTIONAL demo compatibility rules (data + checks)
   config/assetMap.ts         Logical component ids → model nodes/materials; per-group visuals (variant GLBs, tape colours, notes)
   plugins/configuration-persistence.ts   Cookie persistence (SSR-safe)
   types/                     Domain types
-  utils/                     Pure logic (no Vue): pricing.ts, configuration.ts
+  utils/                     Pure logic (no Vue): pricing, configuration, compatibility, exportConfiguration (forgelab.configuration/v1)
   utils/three/               Scene, loading, inspectModel, assetMapping, configuratorScene (paint + part swaps), dispose, placeholder
 tests/                       Vitest unit tests (Node)
 scripts/bike/                Procedural bike generator (Node, tsx) — source of all GLBs
@@ -58,11 +61,12 @@ Note: top-level files in `app/utils/` and `app/composables/` are auto-imported �
 5. **Asset mapping:** never assume GLB node names. Map logical ids (`frame_main`, `wheel_front`, …) to real nodes through the asset-mapping layer; handle missing nodes gracefully.
 6. **Catalog data only in `app/config/`.** No prices in templates. Prices are USD, per component; total = sum.
 7. **Client prices are display-only.** Real orders must be re-priced/validated server-side (Shopify variants or trusted service). Never put Shopify Admin secrets in browser code.
-8. **Content:** all product names, specs and prices are fictional. Real brand names (e.g. groupset makers) may label demo options only, with the on-page disclaimer; never claim real specs or compatibility. No third-party logos.
-9. **Persistence:** configuration lives in the `forgelab_config` cookie; always pass untrusted input through `sanitizeConfiguration`.
-10. **Styling:** Tailwind brand tokens (`ink`, `graphite`, `bone`, `forge`; `font-display`, `ease-premium`). No ad-hoc hex colours in components (paint data excepted).
-11. **Accessibility:** option cards are `role="radio"` in a `radiogroup`; visible focus rings; keyboard-operable.
-12. **Responsive:** verify at 390 px and 1440 px.
+8. **Compatibility rules are fictional** and must only use the invented `attrs` in the catalog — never real manufacturer specs. Label them "demo rule" in the UI.
+9. **Content:** all product names, specs and prices are fictional. Real brand names (e.g. groupset makers) may label demo options only, with the on-page disclaimer; never claim real specs or compatibility. No third-party logos.
+10. **Persistence:** configuration lives in the `forgelab_config` cookie; always pass untrusted input through `sanitizeConfiguration`.
+11. **Styling:** Tailwind brand tokens (`ink`, `graphite`, `bone`, `forge`; `font-display`, `ease-premium`). No ad-hoc hex colours in components (paint data excepted).
+12. **Accessibility:** option cards are `role="radio"` in a `radiogroup`; visible focus rings; keyboard-operable.
+13. **Responsive:** the 3D viewer is sticky (`--viewer-h`) so the bike stays visible while options scroll; verify at 390 px and 1440 px.
 
 ## 3D assets
 - The bike is an ORIGINAL procedural asset from `scripts/bike/` (no licensed third-party model was obtainable).

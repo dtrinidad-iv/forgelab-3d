@@ -2,18 +2,24 @@
 import { GROUPS } from '~/config/catalog'
 
 const { steps, stepIndex, isFirst, isLast, next, prev, currentMissing, showValidation } = useConfiguratorSteps()
-const { total } = usePricing()
+const { total, breakdown } = usePricing()
+const { errors } = useCompatibility()
 
 const nextLabel = computed(() => {
   const upcoming = steps[stepIndex.value + 1]
   return upcoming ? `Next: ${upcoming.label}` : ''
 })
 
-const hint = computed(() =>
-  showValidation.value && currentMissing.value.length
-    ? `Select ${currentMissing.value.map((g) => GROUPS[g].label.toLowerCase()).join(', ')} to continue`
-    : '',
-)
+const hint = computed(() => {
+  if (showValidation.value && currentMissing.value.length) {
+    return `Select ${currentMissing.value.map((g) => GROUPS[g].label.toLowerCase()).join(', ')} to continue`
+  }
+  if (isLast.value) {
+    if (breakdown.value.missing.length) return `${breakdown.value.missing.length} required selection${breakdown.value.missing.length > 1 ? 's' : ''} missing`
+    if (errors.value.length) return `Resolve ${errors.value.length} compatibility issue${errors.value.length > 1 ? 's' : ''} before checkout`
+  }
+  return ''
+})
 </script>
 
 <template>

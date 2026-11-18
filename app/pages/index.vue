@@ -19,6 +19,12 @@ const visualTarget = computed<VisualTarget>(() => ({
   variants: Object.fromEntries(GROUP_IDS.filter((g) => g !== 'paint').map((g) => [g, selections.value[g]])),
 }))
 
+// New step → bring its title back into view under the sticky viewer.
+watch(
+  () => currentStep.value.id,
+  () => import.meta.client && window.scrollY > 0 && window.scrollTo({ top: 0, behavior: 'smooth' }),
+)
+
 const isReview = computed(() => currentStep.value.id === 'review')
 const multiGroup = computed(() => currentStep.value.groups.length > 1)
 
@@ -45,10 +51,11 @@ useSeoMeta({
     </header>
 
     <div class="mx-auto w-full max-w-[1600px] flex-1 lg:grid lg:grid-cols-[minmax(0,1fr)_380px] xl:grid-cols-[minmax(0,1fr)_420px]">
-      <main class="min-w-0 pb-36 lg:pb-16">
+      <!-- The viewer is sticky so the bike stays visible while options scroll beneath it. -->
+      <main class="min-w-0 pb-36 [--viewer-h:max(34vh,220px)] sm:[--viewer-h:max(42vh,300px)] lg:pb-16 lg:[--viewer-h:clamp(380px,54vh,600px)]">
         <!-- 3D viewer -->
         <section
-          class="relative h-[46vh] min-h-[300px] overflow-hidden bg-[radial-gradient(ellipse_at_50%_40%,#FFFFFF_0%,#F4F2EE_55%,#E9E6E0_100%)] lg:h-[min(64vh,760px)] lg:min-h-[460px]"
+          class="sticky top-16 z-20 h-[var(--viewer-h)] overflow-hidden bg-[radial-gradient(ellipse_at_50%_40%,#FFFFFF_0%,#F4F2EE_55%,#E9E6E0_100%)]"
           aria-label="3D bicycle preview"
         >
           <ClientOnly>
@@ -61,8 +68,8 @@ useSeoMeta({
           </ClientOnly>
 
           <div class="pointer-events-none absolute bottom-4 left-4 sm:bottom-6 sm:left-6 lg:left-10">
-            <p class="text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-graphite-400">ForgeLab</p>
-            <p class="font-display text-2xl font-semibold tracking-tightest sm:text-4xl">{{ frameName }}</p>
+            <p class="hidden text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-graphite-400 sm:block">ForgeLab</p>
+            <p class="font-display text-xl font-semibold tracking-tightest sm:text-4xl">{{ frameName }}</p>
             <p class="flex items-center gap-2 text-sm text-graphite">
               <PaintSwatch v-if="paint" :color="paint.color" :finish="paint.finish" size="sm" />
               {{ paintLabel }}
@@ -71,7 +78,7 @@ useSeoMeta({
         </section>
 
         <!-- Step navigation -->
-        <div class="sticky top-16 z-30 border-b border-bone-300/80 bg-bone/90 px-3 py-2.5 backdrop-blur-md sm:px-5 lg:px-9">
+        <div class="sticky top-[calc(4rem+var(--viewer-h))] z-30 border-b border-bone-300/80 bg-bone/90 px-3 py-2.5 backdrop-blur-md sm:px-5 lg:px-9">
           <StepNav />
         </div>
 
@@ -84,6 +91,8 @@ useSeoMeta({
               </p>
               <h1 class="mt-2 font-display text-3xl font-semibold tracking-tightest sm:text-4xl">{{ currentStep.title }}</h1>
               <p class="mt-2 max-w-2xl text-[0.95rem] leading-relaxed text-graphite">{{ currentStep.description }}</p>
+
+              <CompatibilityNotice v-if="!isReview" :groups="currentStep.groups" class="mt-6" />
 
               <div class="mt-8">
                 <ReviewPanel v-if="isReview" />

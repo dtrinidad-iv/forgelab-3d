@@ -1,5 +1,6 @@
 <script setup lang="ts">
 const { steps, stepIndex, goTo, canVisit, isStepComplete } = useConfiguratorSteps()
+const { stepHasError } = useCompatibility()
 
 const scroller = ref<HTMLElement | null>(null)
 
@@ -33,7 +34,7 @@ function stateOf(i: number): State {
           }"
           :disabled="stateOf(i) === 'locked'"
           :aria-current="stateOf(i) === 'current' ? 'step' : undefined"
-          :aria-label="`Step ${i + 1}: ${step.label}${isStepComplete(i) ? ' (complete)' : ''}`"
+          :aria-label="`Step ${i + 1}: ${step.label}${isStepComplete(i) ? ' (complete)' : ''}${stepHasError(step) ? ' (compatibility issue)' : ''}`"
           @click="goTo(i)"
         >
           <span
@@ -51,6 +52,7 @@ function stateOf(i: number): State {
             <template v-else>{{ i + 1 }}</template>
           </span>
           <span class="font-medium">{{ step.label }}</span>
+          <span v-if="stepHasError(step)" class="-ml-0.5 h-1.5 w-1.5 rounded-full bg-forge" aria-hidden="true" />
         </button>
       </li>
     </ol>

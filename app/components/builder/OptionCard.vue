@@ -6,6 +6,8 @@ const props = defineProps<{
   option: CatalogOption
   selected: boolean
   compact?: boolean
+  /** Set when choosing this option would create a compatibility error. */
+  conflict?: string | null
 }>()
 
 defineEmits<{ select: [] }>()
@@ -47,7 +49,11 @@ const priceLabel = computed(() => (props.option.price === 0 ? 'Included' : forma
       </span>
     </div>
 
-    <ul v-if="!compact && option.specs.length" class="mt-4 space-y-1 text-[0.8rem] text-graphite">
+    <p v-if="conflict" class="mt-3 flex items-start gap-1.5 text-[0.75rem] font-medium leading-snug text-forge-600">
+      <span class="mt-[0.3rem] h-1.5 w-1.5 shrink-0 rounded-full bg-forge" aria-hidden="true" />{{ conflict }}
+    </p>
+
+    <ul v-if="!compact && option.specs.length" class="mt-4 space-y-1 text-[0.8rem] text-graphite" :class="conflict ? 'opacity-60' : ''">
       <li v-for="spec in option.specs" :key="spec" class="flex items-center gap-2">
         <span class="h-px w-2.5 bg-graphite-300" aria-hidden="true" />{{ spec }}
       </li>

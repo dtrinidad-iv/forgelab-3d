@@ -5,6 +5,7 @@ import { formatPrice } from '~/utils/pricing'
 const { getOption, paint } = useConfigurator()
 const { goToGroup, canVisit, steps, currentStep, reset } = useConfiguratorSteps()
 const { total, breakdown } = usePricing()
+const { errors } = useCompatibility()
 
 const rows = computed(() =>
   GROUP_IDS.map((group) => ({
@@ -65,5 +66,15 @@ function confirmReset() {
       </div>
       <PriceDisplay :value="total" size="lg" />
     </div>
+
+    <button
+      v-if="errors.length"
+      type="button"
+      class="mt-4 flex w-full items-center gap-2 rounded-xl bg-forge-100 px-3.5 py-2.5 text-left text-sm font-medium text-forge-600 transition-colors hover:bg-forge-100/70"
+      @click="goToGroup(errors[0]!.groups[errors[0]!.groups.length - 1]!)"
+    >
+      <span class="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-forge text-[0.7rem] font-bold text-white" aria-hidden="true">!</span>
+      {{ errors.length }} compatibility issue{{ errors.length > 1 ? 's' : '' }} to resolve
+    </button>
   </div>
 </template>

@@ -26,6 +26,10 @@ npm run inspect:glb -- public/models/bicycle/road-bike.glb
 - Step completion states, required-selection validation (can't skip an incomplete step)
 - Custom paint colour with matte / gloss / metallic finish
 - Live price with per-component breakdown (USD, demo pricing)
+- Fictional compatibility rules (tyre clearance, drivetrain speeds, bar clamp; advisory saddle fit;
+  auto-matched bottom bracket) with card warnings and one-click fixes
+- JSON export of the configuration (`forgelab.configuration/v1`): selections, price breakdown,
+  compatibility results
 - Configuration saved in a cookie — survives reloads, rendered server-side
 - Reset to defaults
 - Interactive Three.js viewer: orbit, zoom, reset view, loading progress, error handling
@@ -46,5 +50,5 @@ See [`CLAUDE.md`](./CLAUDE.md) for structure and project rules.
 | 1 | Nuxt app, premium UI, 7-step navigation, mock data, pricing engine | Done |
 | 2 | 3D model (original procedural GLB), inspection utility, asset mapping, viewer | Done |
 | 3 | Frame material switching, component replacement, pricing/swap tests | Done |
-| 4 | Compatibility rules, JSON export, responsive polish | Next |
-| 5 | Commerce/Shopify architecture + docs, QA, performance, demo prep | Planned |
+| 4 | Compatibility rules, JSON export, responsive polish (sticky viewer) | Done |
+| 5 | Commerce/Shopify architecture + docs, QA, performance, demo prep, deployment | Next |

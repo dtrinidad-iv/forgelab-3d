@@ -9,6 +9,7 @@ const props = withDefaults(defineProps<{ group: GroupId; collapsible?: boolean; 
 
 const { selections, getOption, select, isGroupComplete } = useConfigurator()
 const { showValidation } = useConfiguratorSteps()
+const { conflictLabel } = useCompatibility()
 
 const definition = computed(() => GROUPS[props.group])
 const options = computed(() => CATALOG[props.group])
@@ -74,6 +75,7 @@ const panelId = `group-${props.group}`
           :option="option"
           :selected="selections[group] === option.id"
           :compact="isSize"
+          :conflict="conflictLabel(group, option.id)"
           @select="select(group, option.id)"
         />
       </div>

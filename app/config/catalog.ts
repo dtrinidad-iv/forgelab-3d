@@ -40,10 +40,10 @@ export const GROUP_IDS = Object.keys(GROUPS) as GroupId[]
 
 export const CATALOG: Record<GroupId, CatalogOption[]> = {
   frame: [
-    { id: 'aero-carbon', name: 'Aero Carbon', tagline: 'Wind-cheating race frameset', specs: ['Truncated aero tube profiles', 'Integrated seatpost', '30 mm tyre clearance'], price: 1900, weightGrams: 920, badge: 'Race' },
-    { id: 'endurance-carbon', name: 'Endurance Carbon', tagline: 'Long-day comfort, race-day stiffness', specs: ['Compliant rear triangle', 'Taller stack geometry', '35 mm tyre clearance'], price: 1500, weightGrams: 980 },
-    { id: 'titanium', name: 'Titanium', tagline: 'Brushed 3Al/2.5V, built for decades', specs: ['Hand-welded tubeset', 'Threaded bottom bracket', '32 mm tyre clearance'], price: 2200, weightGrams: 1450, badge: 'Heirloom' },
-    { id: 'steel', name: 'Steel', tagline: 'Classic lugged chromoly', specs: ['Lugged construction', 'Threaded bottom bracket', '32 mm tyre clearance'], price: 1200, weightGrams: 1850 },
+    { id: 'aero-carbon', name: 'Aero Carbon', tagline: 'Wind-cheating race frameset', specs: ['Truncated aero tube profiles', 'Integrated seatpost', '30 mm tyre clearance'], price: 1900, weightGrams: 920, badge: 'Race', attrs: { tyreClearanceMm: 30, bottomBracket: 'press-fit', position: 'race' } },
+    { id: 'endurance-carbon', name: 'Endurance Carbon', tagline: 'Long-day comfort, race-day stiffness', specs: ['Compliant rear triangle', 'Taller stack geometry', '35 mm tyre clearance'], price: 1500, weightGrams: 980, attrs: { tyreClearanceMm: 35, bottomBracket: 'press-fit', position: 'endurance' } },
+    { id: 'titanium', name: 'Titanium', tagline: 'Brushed 3Al/2.5V, built for decades', specs: ['Hand-welded tubeset', 'Threaded bottom bracket', '32 mm tyre clearance'], price: 2200, weightGrams: 1450, badge: 'Heirloom', attrs: { tyreClearanceMm: 32, bottomBracket: 'threaded', position: 'endurance' } },
+    { id: 'steel', name: 'Steel', tagline: 'Classic lugged chromoly', specs: ['Lugged construction', 'Threaded bottom bracket', '32 mm tyre clearance'], price: 1200, weightGrams: 1850, attrs: { tyreClearanceMm: 32, bottomBracket: 'threaded', position: 'endurance' } },
   ],
   size: [
     { id: 'xs', name: 'XS', tagline: '155–165 cm', specs: ['Stack 505 mm', 'Reach 370 mm'], price: 0 },
@@ -60,23 +60,23 @@ export const CATALOG: Record<GroupId, CatalogOption[]> = {
     { id: 'custom', name: 'Custom Colour', tagline: 'Any colour, your choice of finish', specs: ['Colour-matched in studio'], price: 300, badge: 'Bespoke', paint: { color: '#E4572E', finish: 'gloss', custom: true } },
   ],
   groupset: [
-    { id: 'shimano-demo', name: 'Shimano', tagline: 'Demo 2×12 electronic option', specs: ['2×12 electronic shifting', 'Hydraulic disc brakes', 'Demo spec & pricing'], price: 850 },
-    { id: 'sram-demo', name: 'SRAM', tagline: 'Demo 2×12 wireless option', specs: ['2×12 wireless shifting', 'Hydraulic disc brakes', 'Demo spec & pricing'], price: 950 },
-    { id: 'campagnolo-demo', name: 'Campagnolo', tagline: 'Demo 2×13 mechanical option', specs: ['2×13 mechanical shifting', 'Hydraulic disc brakes', 'Demo spec & pricing'], price: 1100 },
+    { id: 'shimano-demo', name: 'Shimano', tagline: 'Demo 2×12 electronic option', specs: ['2×12 electronic shifting', 'Hydraulic disc brakes', 'Demo spec & pricing'], price: 850, attrs: { speeds: 12 } },
+    { id: 'sram-demo', name: 'SRAM', tagline: 'Demo 2×12 wireless option', specs: ['2×12 wireless shifting', 'Hydraulic disc brakes', 'Demo spec & pricing'], price: 950, attrs: { speeds: 12 } },
+    { id: 'campagnolo-demo', name: 'Campagnolo', tagline: 'Demo 2×13 mechanical option', specs: ['2×13 mechanical shifting', 'Hydraulic disc brakes', 'Demo spec & pricing'], price: 1100, attrs: { speeds: 13 } },
   ],
   wheels: [
-    { id: 'alloy', name: 'Alloy', tagline: 'Durable everyday wheelset', specs: ['28 mm rim depth', '1,650 g'], price: 250 },
-    { id: 'carbon-climbing', name: 'Carbon Climbing', tagline: 'Low-profile, low-weight', specs: ['35 mm rim depth', '1,250 g'], price: 650 },
-    { id: 'carbon-deep', name: 'Carbon Deep-Section', tagline: 'Aero speed for flat and fast', specs: ['60 mm rim depth', '1,480 g'], price: 800, badge: 'Fastest' },
+    { id: 'alloy', name: 'Alloy', tagline: 'Durable everyday wheelset', specs: ['28 mm rim depth', '32 mm tyres', 'Up to 12-speed freehub', '1,650 g'], price: 250, attrs: { tyreWidthMm: 32, freehubMaxSpeeds: 12 } },
+    { id: 'carbon-climbing', name: 'Carbon Climbing', tagline: 'Low-profile, low-weight', specs: ['35 mm rim depth', '28 mm tyres', 'Up to 13-speed freehub', '1,250 g'], price: 650, attrs: { tyreWidthMm: 28, freehubMaxSpeeds: 13 } },
+    { id: 'carbon-deep', name: 'Carbon Deep-Section', tagline: 'Aero speed for flat and fast', specs: ['60 mm rim depth', '28 mm tyres', 'Up to 13-speed freehub', '1,480 g'], price: 800, badge: 'Fastest', attrs: { tyreWidthMm: 28, freehubMaxSpeeds: 13 } },
   ],
   handlebar: [
-    { id: 'alloy-compact', name: 'Alloy Compact', tagline: 'Short-reach, shallow-drop', specs: ['Round tops', '31.8 mm clamp'], price: 80 },
-    { id: 'carbon-ergo', name: 'Carbon Ergo', tagline: 'Flattened tops, ergonomic bend', specs: ['Flat aero tops', '31.8 mm clamp'], price: 220 },
-    { id: 'carbon-aero', name: 'Carbon Aero', tagline: 'Narrow hoods, flared drops', specs: ['Wing-profile tops', '31.8 mm clamp'], price: 300 },
+    { id: 'alloy-compact', name: 'Alloy Compact', tagline: 'Short-reach, shallow-drop', specs: ['Round tops', 'Round clamp section'], price: 80, attrs: { clamp: 'round' } },
+    { id: 'carbon-ergo', name: 'Carbon Ergo', tagline: 'Flattened tops, ergonomic bend', specs: ['Flat aero tops', 'Round clamp section'], price: 220, attrs: { clamp: 'round' } },
+    { id: 'carbon-aero', name: 'Carbon Aero', tagline: 'Narrow hoods, flared drops', specs: ['Wing-profile tops', 'Aero clamp section'], price: 300, attrs: { clamp: 'aero' } },
   ],
   stem: [
-    { id: 'alloy-stem', name: 'Alloy', tagline: 'Forged, 6° rise', specs: ['−6° angle', '31.8 mm clamp'], price: 80 },
-    { id: 'carbon-stem', name: 'Carbon', tagline: 'Lightweight, flush cover', specs: ['−10° angle', '31.8 mm clamp'], price: 160 },
+    { id: 'alloy-stem', name: 'Alloy', tagline: 'Forged, 6° rise', specs: ['−6° angle', 'Round bars only'], price: 80, attrs: { acceptsClamps: ['round'] } },
+    { id: 'carbon-stem', name: 'Carbon', tagline: 'Lightweight, flush cover', specs: ['−10° angle', 'Round & aero bars'], price: 160, attrs: { acceptsClamps: ['round', 'aero'] } },
   ],
   barTape: [
     { id: 'tape-black', name: 'Classic Black', tagline: 'Grippy microfibre', specs: ['2.5 mm thickness'], price: 30 },
@@ -84,9 +84,9 @@ export const CATALOG: Record<GroupId, CatalogOption[]> = {
     { id: 'tape-tan', name: 'Tan Leather', tagline: 'Hand-stitched, ages beautifully', specs: ['Natural leather'], price: 70, badge: 'Classic' },
   ],
   saddle: [
-    { id: 'saddle-comfort', name: 'Comfort', tagline: 'Wider, more padding', specs: ['Steel rails', '155 mm width'], price: 100 },
-    { id: 'saddle-short', name: 'Short-Nose', tagline: 'Pressure relief for aggressive positions', specs: ['Ti rails', '143 mm width'], price: 140 },
-    { id: 'saddle-race', name: 'Race Carbon', tagline: 'Minimal, lightweight', specs: ['Carbon rails', '138 mm width'], price: 180 },
+    { id: 'saddle-comfort', name: 'Comfort', tagline: 'Wider, more padding', specs: ['Steel rails', '155 mm width'], price: 100, attrs: { widthMm: 155 } },
+    { id: 'saddle-short', name: 'Short-Nose', tagline: 'Pressure relief for aggressive positions', specs: ['Ti rails', '143 mm width'], price: 140, attrs: { widthMm: 143 } },
+    { id: 'saddle-race', name: 'Race Carbon', tagline: 'Minimal, lightweight', specs: ['Carbon rails', '138 mm width'], price: 180, attrs: { widthMm: 138 } },
   ],
 }
 

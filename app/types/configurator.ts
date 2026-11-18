@@ -55,6 +55,30 @@ export interface CatalogOption {
   paint?: PaintSpec & { custom?: boolean }
   /** Frame options only: frameset weight in grams. */
   weightGrams?: number
+  /** Fictional technical attributes used by the compatibility rules (`config/compatibility.ts`). */
+  attrs?: OptionAttributes
+}
+
+/** Demo-only attributes. Invented for ForgeLab; not real manufacturer specifications. */
+export interface OptionAttributes {
+  /** Frame: maximum tyre width in mm. */
+  tyreClearanceMm?: number
+  /** Frame: bottom bracket shell type. */
+  bottomBracket?: 'press-fit' | 'threaded'
+  /** Frame: riding position. */
+  position?: 'race' | 'endurance'
+  /** Wheels: width of the tyres the wheelset ships with, in mm. */
+  tyreWidthMm?: number
+  /** Wheels: highest drivetrain speed count the freehub accepts. */
+  freehubMaxSpeeds?: number
+  /** Groupset: rear speed count. */
+  speeds?: number
+  /** Handlebar: clamp section. */
+  clamp?: 'round' | 'aero'
+  /** Stem: clamp sections it accepts. */
+  acceptsClamps?: Array<'round' | 'aero'>
+  /** Saddle: width in mm. */
+  widthMm?: number
 }
 
 export type Selections = Record<GroupId, string | null>
