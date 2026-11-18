@@ -3,6 +3,9 @@ export default defineNuxtConfig({
   compatibilityDate: '2026-11-01',
   devtools: { enabled: true },
 
+  // Nuxt 4 directory layout (app/ as srcDir, public/ at root) on Nuxt 3.
+  future: { compatibilityVersion: 4 },
+
   modules: ['@nuxtjs/tailwindcss', '@nuxt/fonts'],
 
   components: [{ path: '~/components', pathPrefix: false }],

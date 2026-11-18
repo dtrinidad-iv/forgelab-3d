@@ -1,53 +1,62 @@
 # ForgeLab 3D — Project Rules
 
-Premium road-bicycle configurator. Original brand: **ForgeLab**. Seven guided steps:
-Frame → Size → Paint → Groupset → Wheels → Cockpit → Review.
+Premium custom road-bicycle configurator. Independent portfolio / technology demo.
+Original brand: **ForgeLab**. Inspired by guided premium bike builders — never copy their code, branding, designs or images.
+**Deadline: Thu 2026-11-19, 12:00 EST.** Prefer a working, impressive MVP over abstractions.
+
+Seven steps: Frame → Size → Paint → Groupset → Wheels → Cockpit (handlebar, stem, bar tape, saddle) → Review.
 
 ## Stack
-- **Nuxt 3** (pinned `^3`, do not upgrade to Nuxt 4 without an explicit decision) · Vue 3 `<script setup lang="ts">`
-- **TypeScript** strict (`npm run typecheck` must pass with 0 errors)
-- **Three.js** (+ `three/addons/*`) for the viewer
-- **Tailwind CSS** via `@nuxtjs/tailwindcss` (v3), fonts via `@nuxt/fonts` (Inter, Space Grotesk)
-- **Blender** for 3D assets, exported as `.glb`
+- **Nuxt 3** with `future.compatibilityVersion: 4` (source in `app/`, `public/` at root). Do not upgrade to Nuxt 4 without an explicit decision.
+- Vue 3 `<script setup lang="ts">`, **TypeScript strict** (`npm run typecheck` must pass with 0 errors)
+- **Tailwind CSS** (`@nuxtjs/tailwindcss`, v3), fonts via `@nuxt/fonts` (Inter, Space Grotesk)
+- **Three.js** (GLTFLoader, OrbitControls, PBR materials) for the viewer
+- Commerce: mock providers now, **Shopify Storefront API later**. No Shopify packages until that phase.
+- Backend (Laravel/MySQL): deferred. Frontend must not depend on it.
 - Package manager: **npm**
 
 ## Commands
-- `npm run dev` — dev server on http://localhost:3000
-- `npm run typecheck` — vue-tsc
-- `npm run build` / `npm run preview` — production build
+- `npm run dev` — http://localhost:3000
+- `npm run typecheck`
+- `npm run build` / `npm run preview` (stop `dev` first — Nuxt refuses to build while dev runs)
 
 ## Structure
 ```
-app.vue                      Root (NuxtPage)
-pages/index.vue              Configurator layout (header, viewer, steps, summary, nav)
-components/                  Auto-imported WITHOUT path prefix (<StepNav>, not <ConfiguratorStepNav>)
-  brand/                     Logo and brand atoms
-  configurator/              StepNav, OptionGrid, OptionCard, BuildSummary, PriceDisplay, StepFooter, ReviewPanel
-  viewer/ProductViewer.vue   Reusable Three.js viewer (client-only)
-composables/useConfigurator.ts   Single source of truth: step, selections, total price (useState)
-data/catalog.ts              Steps, options, prices, defaults — ALL catalog data lives here
-types/configurator.ts        Domain types
-lib/three/                   Framework-agnostic Three.js helpers (scene, loading, placeholder, disposal)
+app/
+  pages/index.vue            Configurator layout
+  components/                Auto-imported WITHOUT path prefix (<StepNav>, not <BuilderStepNav>)
+    builder/                 Step nav, option groups/cards, paint picker, summary, review, footer
+    viewer/ProductViewer.vue Three.js viewer (client-only)
+    ui/                      Brand atoms (logo)
+  composables/
+    useConfigurator.ts       Selections + custom paint state (useState)
+    useConfiguratorSteps.ts  Step navigation, completion, required-selection validation, reset
+    usePricing.ts            Reactive wrapper over utils/pricing.ts
+  config/catalog.ts          Steps, groups, options, prices, defaults — ALL catalog data
+  plugins/configuration-persistence.ts   Cookie persistence (SSR-safe)
+  types/                     Domain types
+  utils/                     Pure logic (no Vue): pricing.ts, configuration.ts; three/ = Three.js helpers
 public/models/bicycle/       GLB assets (expected: road-bike.glb)
-assets/css/main.css          Tailwind entry + base layer
+docs/ (planned)              architecture, assets, blender, shopify, configurator guide
+tests/ (planned)
 ```
+Note: top-level files in `app/utils/` and `app/composables/` are auto-imported — keep export names unique.
 
 ## Rules
-1. **Work incrementally.** After each meaningful change: run the app, run `npm run typecheck`, fix errors before moving on. Do not build features beyond what is asked.
-2. **Three.js is client-only.** Wrap viewers in `<ClientOnly>`. Never touch `window`/WebGL during SSR.
-3. **Never put Three.js objects in Vue reactivity** (`ref`, `reactive`, Pinia). Keep them in plain `let` variables inside the component / helpers.
-4. **Always clean up.** On unmount: cancel rAF, disconnect observers, dispose controls, geometries, materials, textures, PMREM/env maps, renderer (+ `forceContextLoss`), remove the canvas. Use `lib/three/dispose.ts`.
-5. **No fake component replacement.** Selections must not visually swap/tint 3D parts until the real GLB with named nodes exists. The placeholder must stay clearly labelled as temporary in code and UI.
-6. **Catalog data only in `data/catalog.ts`.** Components read via `useConfigurator()`. Prices in EUR; frame price is the base, others are deltas.
-7. **Original content only.** No real bicycle/component brand names, logos or trademarks.
-8. **Styling:** Tailwind utilities with the brand tokens in `tailwind.config.ts` (`ink`, `graphite`, `bone`, `forge`; `font-display`, `ease-premium`). No ad-hoc hex colours in components (catalog swatches excepted).
-9. **Accessibility:** option cards are `role="radio"` inside a `radiogroup`; keep visible focus rings; respect keyboard navigation.
-10. **Responsive:** verify at 390 px and 1440 px widths.
+1. **Working method:** inspect → explain plan → list files → implement incrementally → run app → test → fix → summarize. Never claim a feature works without verifying it in the running app.
+2. **Three.js is client-only** (`<ClientOnly>`). Never put Three.js objects in Vue reactivity (`ref`/`reactive`).
+3. **Always dispose** geometries, materials, textures, env maps, controls and renderer on unmount (`utils/three/dispose.ts`). Material changes must not reload the scene.
+4. **No fake 3D.** Never present a UI-only selection as a 3D change. If geometry/material for an option is missing, say so in the UI and in reports. The procedural placeholder must stay labelled as temporary.
+5. **Asset mapping:** never assume GLB node names. Map logical ids (`frame_main`, `wheel_front`, …) to real nodes through the asset-mapping layer; handle missing nodes gracefully.
+6. **Catalog data only in `app/config/`.** No prices in templates. Prices are USD, per component; total = sum.
+7. **Client prices are display-only.** Real orders must be re-priced/validated server-side (Shopify variants or trusted service). Never put Shopify Admin secrets in browser code.
+8. **Content:** all product names, specs and prices are fictional. Real brand names (e.g. groupset makers) may label demo options only, with the on-page disclaimer; never claim real specs or compatibility. No third-party logos.
+9. **Persistence:** configuration lives in the `forgelab_config` cookie; always pass untrusted input through `sanitizeConfiguration`.
+10. **Styling:** Tailwind brand tokens (`ink`, `graphite`, `bone`, `forge`; `font-display`, `ease-premium`). No ad-hoc hex colours in components (paint data excepted).
+11. **Accessibility:** option cards are `role="radio"` in a `radiogroup`; visible focus rings; keyboard-operable.
+12. **Responsive:** verify at 390 px and 1440 px.
 
-## 3D asset conventions (Blender → glTF)
-- Export **glTF Binary (.glb)**, **+Y up**, **metres**, apply transforms, wheels resting on the ground plane.
-- File: `public/models/bicycle/road-bike.glb`.
-- Name nodes per swappable component so they match `modelNode` in `data/catalog.ts`
-  (e.g. `frame_aero_r1`, `wheels_c45`, `groupset_pro`, `cockpit_integrated`).
-- Paintable surfaces use a dedicated material named `paint_primary` / `paint_secondary`.
-- Target < 8 MB. If using Draco/Meshopt compression, add the decoder in `lib/three/loadModel.ts`.
+## 3D asset conventions
+- glTF Binary (`.glb`), +Y up, metres, transforms applied, wheels on the ground plane.
+- Use a properly licensed model; record source + licence in `docs/asset-requirements.md`.
+- Evaluate Draco / Meshopt / KTX2 against the actual model; don't apply blindly.

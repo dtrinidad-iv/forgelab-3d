@@ -10,10 +10,10 @@
  * wrapping them in Vue proxies breaks Three internals and hurts performance.
  */
 import type { Object3D } from 'three'
-import { createScene, WebGLUnavailableError, type ViewerContext } from '~/lib/three/createScene'
-import { disposeObject3D } from '~/lib/three/dispose'
-import { frameObject, loadModel, ModelNotFoundError } from '~/lib/three/loadModel'
-import { createPlaceholderBike } from '~/lib/three/placeholder'
+import { createScene, WebGLUnavailableError, type ViewerContext } from '~/utils/three/createScene'
+import { disposeObject3D } from '~/utils/three/dispose'
+import { frameObject, loadModel, ModelNotFoundError } from '~/utils/three/loadModel'
+import { createPlaceholderBike } from '~/utils/three/placeholder'
 
 type ViewerStatus = 'loading' | 'ready' | 'placeholder' | 'error'
 

@@ -1,20 +1,16 @@
 <script setup lang="ts">
 import type { CatalogOption } from '~/types/configurator'
-import { formatDelta, formatPrice } from '~/composables/useConfigurator'
+import { formatPrice } from '~/utils/pricing'
 
 const props = defineProps<{
   option: CatalogOption
   selected: boolean
-  /** Frames show absolute base price instead of a delta. */
-  absolutePrice?: boolean
   compact?: boolean
 }>()
 
 defineEmits<{ select: [] }>()
 
-const priceLabel = computed(() =>
-  props.absolutePrice ? `From ${formatPrice(props.option.price)}` : formatDelta(props.option.price),
-)
+const priceLabel = computed(() => (props.option.price === 0 ? 'Included' : formatPrice(props.option.price)))
 </script>
 
 <template>
@@ -33,12 +29,7 @@ const priceLabel = computed(() =>
   >
     <div class="flex items-start justify-between gap-3">
       <div class="flex min-w-0 items-center gap-3">
-        <span
-          v-if="option.swatch"
-          class="h-9 w-9 shrink-0 rounded-full ring-1 ring-black/10"
-          :style="{ background: `linear-gradient(135deg, ${option.swatch[0]} 0 50%, ${option.swatch[1]} 50% 100%)` }"
-          aria-hidden="true"
-        />
+        <PaintSwatch v-if="option.paint" :color="option.paint.color" :finish="option.paint.finish" :rainbow="option.paint.custom" />
         <div class="min-w-0">
           <p class="font-display text-[1.05rem] font-semibold leading-tight tracking-tight">{{ option.name }}</p>
           <p class="mt-0.5 truncate text-sm text-graphite">{{ option.tagline }}</p>
@@ -62,7 +53,7 @@ const priceLabel = computed(() =>
       </li>
     </ul>
 
-    <div class="mt-auto flex items-center justify-between gap-2 pt-4">
+    <div v-if="!compact" class="mt-auto flex items-center justify-between gap-2 pt-4">
       <span
         v-if="option.badge"
         class="rounded-full bg-forge-100 px-2 py-0.5 text-[0.68rem] font-semibold uppercase tracking-wider text-forge-600"
@@ -70,7 +61,7 @@ const priceLabel = computed(() =>
         {{ option.badge }}
       </span>
       <span v-else />
-      <span class="tabular text-sm font-medium" :class="option.price === 0 && !absolutePrice ? 'text-graphite' : 'text-ink'">
+      <span class="tabular text-sm font-medium" :class="option.price === 0 ? 'text-graphite' : 'text-ink'">
         {{ priceLabel }}
       </span>
     </div>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { formatPrice } from '~/composables/useConfigurator'
+import { formatPrice } from '~/utils/pricing'
 
 const props = withDefaults(defineProps<{ value: number; size?: 'sm' | 'lg' }>(), { size: 'sm' })
 

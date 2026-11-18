@@ -1,9 +1,16 @@
 <script setup lang="ts">
-const { steps, stepIndex, currentStep, totalPrice, getOption } = useConfigurator()
+const { getOption, paint } = useConfigurator()
+const { steps, stepIndex, currentStep } = useConfiguratorSteps()
+const { total } = usePricing()
 
-const frameName = computed(() => getOption('frame')?.name ?? '')
-const paintName = computed(() => getOption('paint')?.name ?? '')
+const frameName = computed(() => getOption('frame')?.name ?? 'Your ForgeLab')
+const paintLabel = computed(() => {
+  const option = getOption('paint')
+  if (!option) return ''
+  return option.paint?.custom && paint.value ? `Custom · ${paint.value.color}` : option.name
+})
 const isReview = computed(() => currentStep.value.id === 'review')
+const multiGroup = computed(() => currentStep.value.groups.length > 1)
 
 useSeoMeta({
   title: () => `${currentStep.value.label} · ForgeLab Configurator`,
@@ -22,13 +29,13 @@ useSeoMeta({
         </p>
         <div class="flex items-center gap-3">
           <span class="hidden text-xs uppercase tracking-[0.12em] text-graphite-400 sm:inline">Total</span>
-          <PriceDisplay :value="totalPrice" />
+          <PriceDisplay :value="total" />
         </div>
       </div>
     </header>
 
     <div class="mx-auto w-full max-w-[1600px] flex-1 lg:grid lg:grid-cols-[minmax(0,1fr)_380px] xl:grid-cols-[minmax(0,1fr)_420px]">
-      <main class="min-w-0 pb-28 lg:pb-16">
+      <main class="min-w-0 pb-36 lg:pb-16">
         <!-- 3D viewer -->
         <section
           class="relative h-[46vh] min-h-[300px] overflow-hidden bg-[radial-gradient(ellipse_at_50%_40%,#FFFFFF_0%,#F4F2EE_55%,#E9E6E0_100%)] lg:h-[min(64vh,760px)] lg:min-h-[460px]"
@@ -46,7 +53,10 @@ useSeoMeta({
           <div class="pointer-events-none absolute bottom-4 left-4 sm:bottom-6 sm:left-6 lg:left-10">
             <p class="text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-graphite-400">ForgeLab</p>
             <p class="font-display text-2xl font-semibold tracking-tightest sm:text-4xl">{{ frameName }}</p>
-            <p class="text-sm text-graphite">{{ paintName }}</p>
+            <p class="flex items-center gap-2 text-sm text-graphite">
+              <PaintSwatch v-if="paint" :color="paint.color" :finish="paint.finish" size="sm" />
+              {{ paintLabel }}
+            </p>
           </div>
         </section>
 
@@ -67,7 +77,15 @@ useSeoMeta({
 
               <div class="mt-8">
                 <ReviewPanel v-if="isReview" />
-                <OptionGrid v-else />
+                <div v-else :class="multiGroup ? 'rounded-2xl border border-bone-300 bg-bone px-4 lg:border-0 lg:bg-transparent lg:px-0' : ''">
+                  <OptionGroup
+                    v-for="(group, i) in currentStep.groups"
+                    :key="group"
+                    :group="group"
+                    :collapsible="multiGroup"
+                    :default-open="i === 0"
+                  />
+                </div>
               </div>
             </div>
           </Transition>
@@ -80,12 +98,18 @@ useSeoMeta({
             </summary>
             <div class="mt-4"><BuildSummary /></div>
           </details>
+
+          <p class="mt-12 max-w-2xl text-xs leading-relaxed text-graphite-400">
+            ForgeLab is a fictional brand built as a technology demonstration. Component names, specifications and
+            prices are illustrative. Third-party brand names are used for demonstration only and imply no affiliation
+            or product compatibility.
+          </p>
         </section>
       </main>
 
       <!-- Desktop right-side summary -->
       <aside class="hidden border-l border-bone-300 bg-bone-200/40 lg:block">
-        <div class="sticky top-16 flex h-[calc(100dvh-4rem)] flex-col gap-8 overflow-y-auto p-8">
+        <div class="sticky top-16 flex h-[calc(100dvh-4rem)] flex-col gap-6 overflow-y-auto p-8">
           <BuildSummary />
           <div class="mt-auto"><StepFooter /></div>
         </div>
