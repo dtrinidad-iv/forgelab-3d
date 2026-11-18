@@ -73,6 +73,17 @@ export const FORGELAB_ROAD_BIKE: ModelAssetMap = {
   materials: { paint: ['paint_frame'], barTape: ['bar_tape'] },
   visuals: {
     paint: { kind: 'paint' },
+    frame: {
+      kind: 'component',
+      // frame_main first: it hosts the wheel/stem/saddle anchors, so mounted parts move with it.
+      slots: ['frame_main', 'fork', 'seatpost'],
+      variants: {
+        'aero-carbon': `${C}/frame-aero-carbon.glb`,
+        'endurance-carbon': `${C}/frame-endurance-carbon.glb`,
+        titanium: `${C}/frame-titanium.glb`,
+        steel: `${C}/frame-steel.glb`,
+      },
+    },
     wheels: {
       kind: 'component',
       slots: ['wheel_front', 'wheel_rear'],
@@ -103,9 +114,8 @@ export const FORGELAB_ROAD_BIKE: ModelAssetMap = {
       },
     },
   },
-  bakedVariants: { wheels: 'carbon-climbing', handlebar: 'carbon-ergo', stem: 'alloy-stem', saddle: 'saddle-race', barTape: 'tape-black' },
+  bakedVariants: { frame: 'aero-carbon', wheels: 'carbon-climbing', handlebar: 'carbon-ergo', stem: 'alloy-stem', saddle: 'saddle-race', barTape: 'tape-black' },
   notes: {
-    frame: 'One frame shape is modelled. Frame type changes price and specs, not the 3D shape.',
     size: 'The model is shown in size M.',
     groupset: 'Groupset differences are not visualised in 3D.',
   },

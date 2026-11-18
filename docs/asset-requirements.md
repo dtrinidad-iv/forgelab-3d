@@ -16,6 +16,7 @@ npm run inspect:glb -- public/models/bicycle/road-bike.glb --out docs/asset-repo
 | File | Contents |
 |---|---|
 | `road-bike.glb` | Default assembled bike (Aero frame, carbon-climbing wheels, alloy stem, carbon-ergo bar, race saddle) |
+| `components/frame-<id>.glb` | `aero-carbon`, `endurance-carbon`, `titanium`, `steel` — nodes `frame_main` (with mount anchors), `fork`, `seatpost` |
 | `components/wheels-<id>.glb` | `alloy`, `carbon-climbing`, `carbon-deep` — nodes `wheel_front`, `wheel_rear` (+ `tire_*`) |
 | `components/handlebar-<id>.glb` | `alloy-compact`, `carbon-ergo`, `carbon-aero` — node `handlebar` (+ `bar_tape`, shifters) |
 | `components/stem-<id>.glb` | `alloy`, `carbon` — node `stem` (+ `anchor_handlebar`) |
@@ -31,7 +32,9 @@ Full hierarchy, materials and per-mesh counts: [`asset-report.md`](./asset-repor
   `frame_main, fork, wheel_front, wheel_rear, tire_front, tire_rear, crankset, cassette, chain,
   derailleur_front, derailleur_rear, handlebar, stem, bar_tape, saddle, seatpost, brake_front, brake_rear`
 - **Anchors** — empty nodes marking where swappable parts mount; a part is the anchor's child, and
-  its local origin is the mount point:
+  its local origin is the mount point. Wheel, stem and saddle anchors live inside `frame_main`, so a
+  frame swap carries the mounted parts across. Frames share hard points (BB, axles, head/seat angles,
+  saddle height) and differ in head-tube height, top-tube slope, tube profiles, fork, seatpost and lugs:
   `anchor_wheel_front`, `anchor_wheel_rear` (axle centres), `anchor_stem` (headset top),
   `anchor_handlebar` (inside the stem, at the bar clamp), `anchor_saddle` (seatpost clamp).
 - **Materials by name:** `paint_frame` (frame + fork, repainted at runtime), `bar_tape` (recoloured).
@@ -46,9 +49,9 @@ Full hierarchy, materials and per-mesh counts: [`asset-report.md`](./asset-repor
 | Group | 3D behaviour |
 |---|---|
 | Paint | `kind: 'paint'` — one shared `MeshPhysicalMaterial` replaces every `paint_frame` material; colour, roughness, metalness and clearcoat animate. |
-| Wheels, handlebar, stem, saddle | `kind: 'component'` — variant GLB loaded once, slot node cloned and mounted in place (local transform preserved); detached parts are cached for instant re-selection; parts on anchors inside a replaced node move to the new node's anchor. |
+| Frame, wheels, handlebar, stem, saddle | `kind: 'component'` — variant GLB loaded once, slot node cloned and mounted in place (local transform preserved); detached parts are cached for instant re-selection; parts on anchors inside a replaced node move to the new node's anchor. |
 | Bar tape | `kind: 'material'` — shared tape material recoloured. |
-| Frame type, size, groupset | Not visualised; `notes` text is shown next to the options. |
+| Size, groupset | Not visualised; `notes` text is shown next to the options. |
 
 `bakedVariants` records which options the base `road-bike.glb` already shows. Results come back
 from `ConfiguratorScene` per group (`applied` / `loading` / `unsupported` / `missing-asset` / `error`)

@@ -15,7 +15,7 @@ import { Group, type Object3D } from 'three'
 import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js'
 import { buildHandlebar, buildStem, HANDLEBARS, STEMS } from './cockpit'
 import { buildBrakes, buildCassette, buildChain, buildCrankset, buildFrontDerailleur, buildRearDerailleur } from './drivetrain'
-import { anchor, buildFork, buildFrame, buildSeatpost, GEO } from './frame'
+import { buildFork, buildFrame, buildFrameset, buildSeatpost, FRAMES } from './frame'
 import { buildSaddle, SADDLES } from './saddle'
 import { buildWheelset, WHEELSETS } from './wheels'
 
@@ -42,7 +42,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '../..')
 const OUT = join(ROOT, 'public/models/bicycle')
 const COPYRIGHT = 'ForgeLab 3D — original procedural asset (scripts/bike). Not derived from third-party models.'
 
-const DEFAULTS = { wheels: 'carbon-climbing', stem: 'alloy', handlebar: 'carbon-ergo', saddle: 'race-carbon' }
+const DEFAULTS = { frame: 'aero-carbon', wheels: 'carbon-climbing', stem: 'alloy', handlebar: 'carbon-ergo', saddle: 'race-carbon' }
 
 const find = <T extends { id: string }>(list: T[], id: string) => {
   const item = list.find((x) => x.id === id)
@@ -54,24 +54,21 @@ function buildBike(): Group {
   const bike = new Group()
   bike.name = 'forgelab_road_bike'
 
-  bike.add(buildFrame(), buildFork(), buildSeatpost())
+  const frameSpec = find(FRAMES, DEFAULTS.frame)
+  const frame = buildFrame(frameSpec)
+  bike.add(frame, buildFork(frameSpec), buildSeatpost(frameSpec))
   bike.add(buildCrankset(), buildCassette(), buildChain(), buildFrontDerailleur(), buildRearDerailleur(), ...buildBrakes())
 
+  // Mounted parts hang off the frame's anchors, so swapping the frame carries them along.
+  const mount = (anchorName: string, part: Object3D) => frame.getObjectByName(`anchor_${anchorName}`)!.add(part)
   const wheels = buildWheelset(find(WHEELSETS, DEFAULTS.wheels))
-  const front = anchor('wheel_front', GEO.frontAxle)
-  const rear = anchor('wheel_rear', GEO.rearAxle)
-  front.add(wheels.getObjectByName('wheel_front')!)
-  rear.add(wheels.getObjectByName('wheel_rear')!)
+  mount('wheel_front', wheels.getObjectByName('wheel_front')!)
+  mount('wheel_rear', wheels.getObjectByName('wheel_rear')!)
 
-  const stemAnchor = anchor('stem', GEO.stemMount)
   const stem = buildStem(find(STEMS, DEFAULTS.stem))
   stem.getObjectByName('anchor_handlebar')!.add(buildHandlebar(find(HANDLEBARS, DEFAULTS.handlebar)))
-  stemAnchor.add(stem)
-
-  const saddleAnchor = anchor('saddle', GEO.saddleMount)
-  saddleAnchor.add(buildSaddle(find(SADDLES, DEFAULTS.saddle)))
-
-  bike.add(front, rear, stemAnchor, saddleAnchor)
+  mount('stem', stem)
+  mount('saddle', buildSaddle(find(SADDLES, DEFAULTS.saddle)))
   return bike
 }
 
@@ -109,6 +106,7 @@ async function main() {
   console.log('ForgeLab bike generator')
   await write(buildBike(), 'road-bike.glb', { kind: 'assembly' })
 
+  for (const spec of FRAMES) await write(buildFrameset(spec), `components/frame-${spec.id}.glb`, { kind: 'component', slot: 'frame', variant: spec.id })
   for (const spec of WHEELSETS) await write(buildWheelset(spec), `components/wheels-${spec.id}.glb`, { kind: 'component', slot: 'wheels', variant: spec.id })
   for (const spec of HANDLEBARS) await write(wrap(buildHandlebar(spec), `handlebar_${spec.id}`), `components/handlebar-${spec.id}.glb`, { kind: 'component', slot: 'handlebar', variant: spec.id })
   for (const spec of STEMS) await write(wrap(buildStem(spec), `stem_${spec.id}`), `components/stem-${spec.id}.glb`, { kind: 'component', slot: 'stem', variant: spec.id })

@@ -6,6 +6,7 @@
   "forward": "+X",
   "driveSide": "+Z",
   "defaults": {
+    "frame": "aero-carbon",
     "wheels": "carbon-climbing",
     "stem": "alloy",
     "handlebar": "carbon-ergo",
@@ -14,10 +15,46 @@
   "assets": [
     {
       "file": "/models/bicycle/road-bike.glb",
-      "bytes": 2559520,
+      "bytes": 2559544,
       "meshes": 32,
       "triangles": 70832,
       "kind": "assembly"
+    },
+    {
+      "file": "/models/bicycle/components/frame-aero-carbon.glb",
+      "bytes": 153900,
+      "meshes": 5,
+      "triangles": 3072,
+      "kind": "component",
+      "slot": "frame",
+      "variant": "aero-carbon"
+    },
+    {
+      "file": "/models/bicycle/components/frame-endurance-carbon.glb",
+      "bytes": 153904,
+      "meshes": 5,
+      "triangles": 3072,
+      "kind": "component",
+      "slot": "frame",
+      "variant": "endurance-carbon"
+    },
+    {
+      "file": "/models/bicycle/components/frame-titanium.glb",
+      "bytes": 153888,
+      "meshes": 5,
+      "triangles": 3072,
+      "kind": "component",
+      "slot": "frame",
+      "variant": "titanium"
+    },
+    {
+      "file": "/models/bicycle/components/frame-steel.glb",
+      "bytes": 180472,
+      "meshes": 7,
+      "triangles": 3520,
+      "kind": "component",
+      "slot": "frame",
+      "variant": "steel"
     },
     {
       "file": "/models/bicycle/components/wheels-alloy.glb",

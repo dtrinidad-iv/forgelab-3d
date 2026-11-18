@@ -34,8 +34,8 @@ npm run inspect:glb -- public/models/bicycle/road-bike.glb
 - Reset to defaults
 - Interactive Three.js viewer: orbit, zoom, reset view, loading progress, error handling
 - Real-time frame paint (presets + custom colour, matte / gloss / metallic) without reloading the scene
-- Genuine 3D part replacement for wheels, handlebar, stem and saddle; bar-tape colour; every
-  option states whether it is shown in 3D (frame type, size and groupset are not)
+- Genuine 3D part replacement for frame (4 distinct framesets), wheels, handlebar, stem and saddle;
+  bar-tape colour; every option states whether it is shown in 3D (size and groupset are not)
 - Original procedural road-bike model (generated in code, see `docs/asset-requirements.md`) with
   named components, mount anchors and an asset-mapping layer that reports missing parts
 

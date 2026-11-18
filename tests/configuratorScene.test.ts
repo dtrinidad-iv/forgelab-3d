@@ -105,8 +105,47 @@ describe('ConfiguratorScene (real generated GLBs)', () => {
     expect(scene.tapeMaterial.color.getHexString()).toBe('a8703f')
   })
 
+  it('replaces the frame and carries every mounted part onto the new frame', async () => {
+    scene.applyPaint({ color: '#C8102E', finish: 'gloss' }, false)
+    const wheel = root.getObjectByName('wheel_rear')!
+    const stem = root.getObjectByName('stem')!
+    const bar = root.getObjectByName('handlebar')!
+    const saddle = root.getObjectByName('saddle')!
+    const oldFrame = root.getObjectByName('frame_main')!
+    const oldFork = root.getObjectByName('fork')!
+    const saddlePos = worldPos(saddle)
+    const stemPos = worldPos(stem)
+    const wheelPos = worldPos(wheel)
+
+    const status = await scene.setVariant('frame', 'endurance-carbon')
+
+    expect(status).toEqual({ state: 'applied', kind: 'component' })
+    const frame = root.getObjectByName('frame_main')!
+    expect(frame).not.toBe(oldFrame)
+    expect(root.getObjectByName('fork')).not.toBe(oldFork)
+    expect(wheel.parent).toBe(frame.getObjectByName('anchor_wheel_rear'))
+    expect(stem.parent).toBe(frame.getObjectByName('anchor_stem'))
+    expect(saddle.parent).toBe(frame.getObjectByName('anchor_saddle'))
+    expect(bar.parent?.parent).toBe(stem) // handlebar still on the stem
+    expect(worldPos(wheel).distanceTo(wheelPos)).toBeLessThan(1e-6) // shared axle
+    expect(worldPos(saddle).distanceTo(saddlePos)).toBeLessThan(1e-6) // shared saddle height
+    expect(worldPos(stem).y).toBeGreaterThan(stemPos.y + 0.03) // taller endurance head tube
+
+    // The current paint follows the new frame and fork.
+    const painted: string[] = []
+    root.traverse((o) => (o as Mesh).isMesh && (o as Mesh).material === scene.paintMaterial && painted.push(o.name))
+    expect(painted.filter((n) => n.startsWith('frame_main') || n.startsWith('fork')).length).toBeGreaterThanOrEqual(2)
+    expect(materialNames(frame)).not.toContain('paint_frame')
+  })
+
+  it('steel frame brings chrome lugs and an alloy seatpost', async () => {
+    await scene.setVariant('frame', 'steel')
+    expect(materialNames(root.getObjectByName('frame_main')!)).toContain('alloy_silver')
+    expect(materialNames(root.getObjectByName('seatpost')!)).toEqual(['alloy_silver'])
+  })
+
   it('reports groups the model cannot show instead of pretending', async () => {
-    for (const group of ['frame', 'size', 'groupset'] as const) {
+    for (const group of ['size', 'groupset'] as const) {
       const status = await scene.setVariant(group, 'anything')
       expect(status.state).toBe('unsupported')
       expect(status.message).toBeTruthy()

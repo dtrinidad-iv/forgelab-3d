@@ -72,5 +72,5 @@ Note: top-level files in `app/utils/` and `app/composables/` are auto-imported â
 - The bike is an ORIGINAL procedural asset from `scripts/bike/` (no licensed third-party model was obtainable).
   Label it as such; never present it as scanned/artist-made. Change geometry in the generator, then re-run it â€” never hand-edit GLBs.
 - Contract (axes, anchors, component + material names): `docs/asset-requirements.md`.
-- Swappable parts mount as children of `anchor_*` nodes; their local origin is the mount point.
+- Swappable parts mount as children of `anchor_*` nodes; their local origin is the mount point. Wheel/stem/saddle anchors live inside `frame_main` so frame swaps carry them.
 - Evaluate Draco / Meshopt / KTX2 against the actual model; don't apply blindly.

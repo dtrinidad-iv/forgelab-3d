@@ -182,6 +182,8 @@ export class ConfiguratorScene {
 
     this.shown.set(group, optionId)
     this.mapping = resolveAssetMap(this.root, this.map)
+    // Newly mounted parts arrive with their own copies of the named materials.
+    this.takeOverMaterials(this.map.materials.paint, this.paintMaterial, this.root)
     this.takeOverMaterials(this.map.materials.barTape, this.tapeMaterial, this.root)
     return { state: 'applied', kind: 'component' }
   }
